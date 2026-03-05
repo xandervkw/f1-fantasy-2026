@@ -1,0 +1,53 @@
+-- Seed: 2026 F1 Drivers (22 drivers, 11 teams)
+insert into drivers (full_name, abbreviation, team, season) values
+  ('Lando Norris',      'NOR', 'McLaren',      2026),
+  ('Oscar Piastri',     'PIA', 'McLaren',      2026),
+  ('Lewis Hamilton',    'HAM', 'Ferrari',       2026),
+  ('Charles Leclerc',   'LEC', 'Ferrari',       2026),
+  ('Max Verstappen',    'VER', 'Red Bull',      2026),
+  ('Isack Hadjar',      'HAD', 'Red Bull',      2026),
+  ('George Russell',    'RUS', 'Mercedes',      2026),
+  ('Kimi Antonelli',    'ANT', 'Mercedes',      2026),
+  ('Fernando Alonso',   'ALO', 'Aston Martin',  2026),
+  ('Lance Stroll',      'STR', 'Aston Martin',  2026),
+  ('Carlos Sainz',      'SAI', 'Williams',      2026),
+  ('Alex Albon',        'ALB', 'Williams',      2026),
+  ('Pierre Gasly',      'GAS', 'Alpine',        2026),
+  ('Franco Colapinto',  'COL', 'Alpine',        2026),
+  ('Oliver Bearman',    'BEA', 'Haas',          2026),
+  ('Esteban Ocon',      'OCO', 'Haas',          2026),
+  ('Nico Hülkenberg',   'HUL', 'Audi',          2026),
+  ('Gabriel Bortoleto', 'BOR', 'Audi',          2026),
+  ('Liam Lawson',       'LAW', 'Racing Bulls',  2026),
+  ('Arvid Lindblad',    'LIN', 'Racing Bulls',  2026),
+  ('Sergio Pérez',      'PER', 'Cadillac',      2026),
+  ('Valtteri Bottas',   'BOT', 'Cadillac',      2026);
+
+-- Seed: 2026 Race Calendar (24 races)
+-- qualifying_time = Saturday 14:00 UTC (placeholder — correct in admin panel)
+-- sprint_qualifying_time = Friday 14:00 UTC (placeholder for sprint weekends)
+insert into races (season, round_number, race_name, circuit, race_date, qualifying_time, sprint_qualifying_time, is_sprint_weekend, status) values
+  (2026,  1, 'Australia',           'Albert Park',          '2026-03-08', '2026-03-07T14:00:00Z', null,                     false, 'upcoming'),
+  (2026,  2, 'China',               'Shanghai',             '2026-03-15', '2026-03-14T14:00:00Z', '2026-03-13T14:00:00Z',   true,  'upcoming'),
+  (2026,  3, 'Japan',               'Suzuka',               '2026-03-29', '2026-03-28T14:00:00Z', null,                     false, 'upcoming'),
+  (2026,  4, 'Bahrain',             'Sakhir',               '2026-04-12', '2026-04-11T14:00:00Z', null,                     false, 'upcoming'),
+  (2026,  5, 'Saudi Arabia',        'Jeddah',               '2026-04-19', '2026-04-18T14:00:00Z', null,                     false, 'upcoming'),
+  (2026,  6, 'Miami',               'Miami International',  '2026-05-03', '2026-05-02T14:00:00Z', '2026-05-01T14:00:00Z',   true,  'upcoming'),
+  (2026,  7, 'Canada',              'Montreal',             '2026-05-24', '2026-05-23T14:00:00Z', '2026-05-22T14:00:00Z',   true,  'upcoming'),
+  (2026,  8, 'Monaco',              'Monte Carlo',          '2026-06-07', '2026-06-06T14:00:00Z', null,                     false, 'upcoming'),
+  (2026,  9, 'Barcelona-Catalunya', 'Barcelona',            '2026-06-14', '2026-06-13T14:00:00Z', null,                     false, 'upcoming'),
+  (2026, 10, 'Austria',             'Red Bull Ring',        '2026-06-28', '2026-06-27T14:00:00Z', null,                     false, 'upcoming'),
+  (2026, 11, 'Great Britain',       'Silverstone',          '2026-07-05', '2026-07-04T14:00:00Z', '2026-07-03T14:00:00Z',   true,  'upcoming'),
+  (2026, 12, 'Belgium',             'Spa-Francorchamps',    '2026-07-19', '2026-07-18T14:00:00Z', null,                     false, 'upcoming'),
+  (2026, 13, 'Hungary',             'Hungaroring',          '2026-07-26', '2026-07-25T14:00:00Z', null,                     false, 'upcoming'),
+  (2026, 14, 'Netherlands',         'Zandvoort',            '2026-08-23', '2026-08-22T14:00:00Z', '2026-08-21T14:00:00Z',   true,  'upcoming'),
+  (2026, 15, 'Italy',               'Monza',                '2026-09-06', '2026-09-05T14:00:00Z', null,                     false, 'upcoming'),
+  (2026, 16, 'Madrid',              'Madrid',               '2026-09-13', '2026-09-12T14:00:00Z', null,                     false, 'upcoming'),
+  (2026, 17, 'Azerbaijan',          'Baku',                 '2026-09-27', '2026-09-26T14:00:00Z', null,                     false, 'upcoming'),
+  (2026, 18, 'Singapore',           'Marina Bay',           '2026-10-11', '2026-10-10T14:00:00Z', '2026-10-09T14:00:00Z',   true,  'upcoming'),
+  (2026, 19, 'Austin',              'COTA',                 '2026-10-25', '2026-10-24T14:00:00Z', null,                     false, 'upcoming'),
+  (2026, 20, 'Mexico City',         'Hermanos Rodríguez',   '2026-11-01', '2026-10-31T14:00:00Z', null,                     false, 'upcoming'),
+  (2026, 21, 'São Paulo',           'Interlagos',           '2026-11-08', '2026-11-07T14:00:00Z', null,                     false, 'upcoming'),
+  (2026, 22, 'Las Vegas',           'Las Vegas Strip',      '2026-11-22', '2026-11-21T14:00:00Z', null,                     false, 'upcoming'),
+  (2026, 23, 'Qatar',               'Lusail',               '2026-11-30', '2026-11-29T14:00:00Z', null,                     false, 'upcoming'),
+  (2026, 24, 'Abu Dhabi',           'Yas Marina',           '2026-12-06', '2026-12-05T14:00:00Z', null,                     false, 'upcoming');
