@@ -4,13 +4,15 @@ import { useAuth } from "@/hooks/useAuth";
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requireCompetition?: boolean;
+  requireAdmin?: boolean;
 }
 
 export default function ProtectedRoute({
   children,
   requireCompetition = true,
+  requireAdmin = false,
 }: ProtectedRouteProps) {
-  const { session, competitionId, loading } = useAuth();
+  const { session, profile, competitionId, loading } = useAuth();
   const location = useLocation();
 
   // Still loading auth state — show spinner
@@ -38,6 +40,11 @@ export default function ProtectedRoute({
   // Logged in but no competition — redirect to join
   if (requireCompetition && !competitionId) {
     return <Navigate to="/join" replace />;
+  }
+
+  // Admin-only route — redirect non-admins to dashboard
+  if (requireAdmin && !profile?.is_admin) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;

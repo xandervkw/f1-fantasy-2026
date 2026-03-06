@@ -72,7 +72,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
       <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold tracking-tight text-foreground">
+        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
           F1 Fantasy 2026
         </h1>
         <p className="mt-2 text-muted-foreground">

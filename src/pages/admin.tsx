@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import type { Race, Driver } from "@/types";
 
 // ---------- helpers ----------
@@ -67,11 +68,16 @@ function toDatetimeLocal(iso: string): string {
 function CompetitionStatusCard({
   members,
   assignmentCount,
+  acceptingMembers,
+  onToggleAccepting,
 }: {
   members: { user_id: string; display_name: string }[];
   assignmentCount: number;
+  acceptingMembers: boolean;
+  onToggleAccepting: (value: boolean) => void;
 }) {
   const hasAssignments = assignmentCount > 0;
+  const isFull = members.length >= 22;
   return (
     <Card>
       <CardHeader>
@@ -82,7 +88,7 @@ function CompetitionStatusCard({
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">Members</span>
           <Badge variant="secondary">
-            {members.length} player{members.length !== 1 ? "s" : ""}
+            {members.length} / 22 player{members.length !== 1 ? "s" : ""}
           </Badge>
         </div>
         <div className="flex items-center justify-between">
@@ -96,6 +102,33 @@ function CompetitionStatusCard({
             Rounds (Latin square)
           </span>
           <Badge variant="secondary">22 of 24</Badge>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              Accepting new members
+            </span>
+            {isFull && (
+              <span className="text-xs text-yellow-400">(Full)</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge
+              variant={acceptingMembers ? "default" : "destructive"}
+              className={
+                acceptingMembers
+                  ? "bg-green-500/15 text-green-400 border-green-500/30"
+                  : ""
+              }
+            >
+              {acceptingMembers ? "Open" : "Closed"}
+            </Badge>
+            <Switch
+              checked={acceptingMembers}
+              onCheckedChange={onToggleAccepting}
+              disabled={isFull && !acceptingMembers}
+            />
+          </div>
         </div>
         {members.length > 0 && (
           <div className="pt-3 border-t">
@@ -129,11 +162,7 @@ function RaceManagementCard({
   const [lockMsg, setLockMsg] = useState<Message | null>(null);
   const [timerMsg, setTimerMsg] = useState<Message | null>(null);
   const [fetching, setFetching] = useState(false);
-  const [locking, setLocking] = useState(false);
-  const [confirmUnlock, setConfirmUnlock] = useState<
-    "race" | "sprint" | "both" | null
-  >(null);
-  const [unlocking, setUnlocking] = useState(false);
+  const [toggling, setToggling] = useState(false);
 
   // Lock timer local state
   const [raceLockInput, setRaceLockInput] = useState("");
@@ -191,7 +220,7 @@ function RaceManagementCard({
                 type="datetime-local"
                 value={raceLockInput}
                 onChange={(e) => setRaceLockInput(e.target.value)}
-                className="w-56"
+                className="w-full sm:w-56"
               />
               <Button
                 size="sm"
@@ -253,7 +282,7 @@ function RaceManagementCard({
                   type="datetime-local"
                   value={sprintLockInput}
                   onChange={(e) => setSprintLockInput(e.target.value)}
-                  className="w-56"
+                  className="w-full sm:w-56"
                 />
                 <Button
                   size="sm"
@@ -304,94 +333,71 @@ function RaceManagementCard({
 
         {/* Lock / Unlock Predictions */}
         <div className="space-y-3">
-          <h3 className="text-sm font-semibold">Lock / Unlock Predictions</h3>
+          <h3 className="text-sm font-semibold">Prediction Locks</h3>
 
-          <div className="flex items-center gap-3 flex-wrap">
-            <Button
-              size="sm"
-              disabled={locking}
-              onClick={async () => {
-                setLocking(true);
-                setLockMsg(null);
-                const res = await admin.lockPredictions();
-                setLockMsg({
-                  type: res.success ? "success" : "error",
-                  text: res.message,
-                });
-                setLocking(false);
-              }}
-            >
-              {locking ? "Locking…" : "Run Lock (all races)"}
-            </Button>
+          {/* Race lock toggle */}
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div>
+              <p className="text-sm font-medium">Race predictions</p>
+              <p className="text-xs text-muted-foreground">
+                {race.admin_race_unlocked ? "Unlocked by admin" : "Locked"}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">
+                {race.admin_race_unlocked ? "Open" : "Locked"}
+              </span>
+              <Switch
+                checked={!race.admin_race_unlocked}
+                disabled={toggling}
+                onCheckedChange={async (locked) => {
+                  setToggling(true);
+                  setLockMsg(null);
+                  const res = locked
+                    ? await admin.lockPredictions(race.id, competitionId, "race")
+                    : await admin.unlockPredictions(race.id, competitionId, "race");
+                  setLockMsg({
+                    type: res.success ? "success" : "error",
+                    text: res.message,
+                  });
+                  setToggling(false);
+                }}
+              />
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-muted-foreground">
-              Unlock this race:
-            </span>
-            {!confirmUnlock ? (
-              <>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setConfirmUnlock("race")}
-                >
-                  Unlock Race
-                </Button>
-                {race.is_sprint_weekend && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setConfirmUnlock("sprint")}
-                  >
-                    Unlock Sprint
-                  </Button>
-                )}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setConfirmUnlock("both")}
-                >
-                  Unlock{race.is_sprint_weekend ? " Both" : ""}
-                </Button>
-              </>
-            ) : (
+          {/* Sprint lock toggle (only for sprint weekends) */}
+          {race.is_sprint_weekend && (
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <p className="text-sm font-medium">Sprint predictions</p>
+                <p className="text-xs text-muted-foreground">
+                  {race.admin_sprint_unlocked ? "Unlocked by admin" : "Locked"}
+                </p>
+              </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-yellow-400">
-                  Unlock {confirmUnlock} predictions?
+                <span className="text-xs text-muted-foreground">
+                  {race.admin_sprint_unlocked ? "Open" : "Locked"}
                 </span>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  disabled={unlocking}
-                  onClick={async () => {
-                    setUnlocking(true);
+                <Switch
+                  checked={!race.admin_sprint_unlocked}
+                  disabled={toggling}
+                  onCheckedChange={async (locked) => {
+                    setToggling(true);
                     setLockMsg(null);
-                    const res = await admin.unlockPredictions(
-                      race.id,
-                      competitionId,
-                      confirmUnlock
-                    );
+                    const res = locked
+                      ? await admin.lockPredictions(race.id, competitionId, "sprint")
+                      : await admin.unlockPredictions(race.id, competitionId, "sprint");
                     setLockMsg({
                       type: res.success ? "success" : "error",
                       text: res.message,
                     });
-                    setConfirmUnlock(null);
-                    setUnlocking(false);
+                    setToggling(false);
                   }}
-                >
-                  {unlocking ? "Unlocking…" : "Yes, unlock"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setConfirmUnlock(null)}
-                >
-                  Cancel
-                </Button>
+                />
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {lockMsg && <Alert message={lockMsg} />}
         </div>
@@ -435,6 +441,55 @@ function RaceManagementCard({
   );
 }
 
+/** Validate a list of positions: no duplicates, 1–maxPos, no gaps */
+function validatePositions(
+  positions: Array<{ driverId: string; pos: number }>,
+  label: string,
+  maxPos: number
+): { errors: string[]; duplicatePositions: Set<number>; outOfRange: Set<number> } {
+  const errors: string[] = [];
+  const duplicatePositions = new Set<number>();
+  const outOfRange = new Set<number>();
+
+  if (positions.length === 0) return { errors, duplicatePositions, outOfRange };
+
+  // Range check (dynamic max based on DNF count)
+  for (const p of positions) {
+    if (p.pos < 1 || p.pos > maxPos) {
+      outOfRange.add(p.pos);
+      errors.push(
+        `${label}: P${p.pos} is out of range (must be 1–${maxPos}).`
+      );
+    }
+  }
+
+  // Duplicate check
+  const seen = new Map<number, number>();
+  for (const p of positions) {
+    seen.set(p.pos, (seen.get(p.pos) ?? 0) + 1);
+  }
+  for (const [pos, count] of seen) {
+    if (count > 1) {
+      duplicatePositions.add(pos);
+      errors.push(`${label}: P${pos} is used ${count} times.`);
+    }
+  }
+
+  // Gap check — positions must be contiguous from 1
+  const sorted = [...positions].map((p) => p.pos).sort((a, b) => a - b);
+  for (let i = 0; i < sorted.length; i++) {
+    const expected = i + 1;
+    if (sorted[i] !== expected) {
+      errors.push(
+        `${label}: Gap — P${expected} is missing (positions must be contiguous from P1).`
+      );
+      break;
+    }
+  }
+
+  return { errors, duplicatePositions, outOfRange };
+}
+
 function ResultsEntryCard({
   race,
   drivers,
@@ -472,6 +527,65 @@ function ResultsEntryCard({
     setResultForm(map);
   }, [drivers, existingResults]);
 
+  // Live validation
+  const validation = useMemo(() => {
+    const rows = Array.from(resultForm.values());
+
+    // Count DNFs to compute dynamic max position
+    const totalDnfRace = rows.filter((r) => r.is_dnf_race).length;
+    const raceMaxPos = drivers.length - totalDnfRace;
+
+    // Race positions (only non-DNF drivers with a position entered)
+    const racePositions = rows
+      .filter((r) => r.finish_position_race != null && !r.is_dnf_race)
+      .map((r) => ({
+        driverId: r.driver_id,
+        pos: r.finish_position_race!,
+      }));
+
+    const raceVal = validatePositions(racePositions, "Race", raceMaxPos);
+
+    // Sprint positions
+    const totalDnfSprint = rows.filter((r) => r.is_dnf_sprint).length;
+    const sprintMaxPos = drivers.length - totalDnfSprint;
+
+    let sprintVal = {
+      errors: [] as string[],
+      duplicatePositions: new Set<number>(),
+      outOfRange: new Set<number>(),
+    };
+    if (race.is_sprint_weekend) {
+      const sprintPositions = rows
+        .filter((r) => r.finish_position_sprint != null && !r.is_dnf_sprint)
+        .map((r) => ({
+          driverId: r.driver_id,
+          pos: r.finish_position_sprint!,
+        }));
+      sprintVal = validatePositions(sprintPositions, "Sprint", sprintMaxPos);
+    }
+
+    // Check completeness
+    const totalWithRacePos = racePositions.length;
+    const totalAccountedFor = totalWithRacePos + totalDnfRace;
+    const raceComplete = totalAccountedFor === drivers.length && totalWithRacePos > 0;
+
+    return {
+      raceErrors: raceVal.errors,
+      sprintErrors: sprintVal.errors,
+      raceDuplicates: raceVal.duplicatePositions,
+      sprintDuplicates: sprintVal.duplicatePositions,
+      raceOutOfRange: raceVal.outOfRange,
+      sprintOutOfRange: sprintVal.outOfRange,
+      allErrors: [...raceVal.errors, ...sprintVal.errors],
+      isValid: raceVal.errors.length === 0 && sprintVal.errors.length === 0,
+      raceComplete,
+      raceFilled: totalWithRacePos,
+      raceDnf: totalDnfRace,
+      raceMaxPos,
+      sprintMaxPos,
+    };
+  }, [resultForm, race.is_sprint_weekend, drivers.length]);
+
   const updateField = (
     driverId: string,
     field: keyof ResultInput,
@@ -488,12 +602,25 @@ function ResultsEntryCard({
   };
 
   const handleSave = async () => {
+    // Validate before saving
+    if (!validation.isValid) {
+      setMsg({
+        type: "error",
+        text: validation.allErrors.join(" "),
+      });
+      return;
+    }
+
     setSaving(true);
     setMsg(null);
 
-    // Only save rows that have at least one position filled
+    // Save rows that have a position OR a DNF flag checked
     const rows = Array.from(resultForm.values()).filter(
-      (r) => r.finish_position_race != null || r.finish_position_sprint != null
+      (r) =>
+        r.finish_position_race != null ||
+        r.finish_position_sprint != null ||
+        r.is_dnf_race ||
+        r.is_dnf_sprint
     );
 
     if (rows.length === 0) {
@@ -516,20 +643,35 @@ function ResultsEntryCard({
         <CardDescription>
           Enter or override finish positions for R{race.round_number}:{" "}
           {race.race_name}
+          {validation.raceFilled > 0 && (
+            <span className="ml-2">
+              — {validation.raceFilled} positions, {validation.raceDnf} DNFs
+              {validation.raceComplete ? " ✓" : ` (${drivers.length - validation.raceFilled - validation.raceDnf} missing)`}
+            </span>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        {/* Validation errors */}
+        {validation.allErrors.length > 0 && (
+          <div className="mb-4 rounded-md p-3 text-sm bg-red-500/10 text-red-400 border border-red-500/20 space-y-1">
+            {validation.allErrors.map((err, i) => (
+              <p key={i}>⚠ {err}</p>
+            ))}
+          </div>
+        )}
+
+        <div className="overflow-x-auto -mx-6 px-6">
+          <table className="w-full text-sm min-w-[400px]">
             <thead>
               <tr className="border-b text-muted-foreground">
                 <th className="text-left py-2 pr-2">Driver</th>
-                <th className="text-center py-2 px-1 w-16">Race Pos</th>
-                <th className="text-center py-2 px-1 w-14">DNF</th>
+                <th className="text-center py-2 px-1 w-16">Pos</th>
+                <th className="text-center py-2 px-1 w-12">DNF</th>
                 {isSprint && (
                   <>
-                    <th className="text-center py-2 px-1 w-16">Sprint Pos</th>
-                    <th className="text-center py-2 px-1 w-14">DNF</th>
+                    <th className="text-center py-2 px-1 w-16">Sprint</th>
+                    <th className="text-center py-2 px-1 w-12">DNF</th>
                   </>
                 )}
               </tr>
@@ -538,6 +680,23 @@ function ResultsEntryCard({
               {drivers.map((driver) => {
                 const row = resultForm.get(driver.id);
                 if (!row) return null;
+
+                const racePosDuplicate =
+                  row.finish_position_race != null &&
+                  validation.raceDuplicates.has(row.finish_position_race);
+                const racePosOutOfRange =
+                  row.finish_position_race != null &&
+                  validation.raceOutOfRange.has(row.finish_position_race);
+                const raceHasError = racePosDuplicate || racePosOutOfRange;
+
+                const sprintPosDuplicate =
+                  row.finish_position_sprint != null &&
+                  validation.sprintDuplicates.has(row.finish_position_sprint);
+                const sprintPosOutOfRange =
+                  row.finish_position_sprint != null &&
+                  validation.sprintOutOfRange.has(row.finish_position_sprint);
+                const sprintHasError = sprintPosDuplicate || sprintPosOutOfRange;
+
                 return (
                   <tr
                     key={driver.id}
@@ -553,8 +712,9 @@ function ResultsEntryCard({
                       <Input
                         type="number"
                         min={1}
-                        max={22}
-                        placeholder="—"
+                        max={validation.raceMaxPos}
+                        placeholder={row.is_dnf_race ? "DNF" : "—"}
+                        disabled={row.is_dnf_race}
                         value={row.finish_position_race ?? ""}
                         onChange={(e) => {
                           const val = e.target.value;
@@ -564,15 +724,34 @@ function ResultsEntryCard({
                             val === "" ? null : parseInt(val, 10)
                           );
                         }}
-                        className="w-16 h-8 text-center text-sm px-1"
+                        className={`w-16 h-8 text-center text-sm px-1 ${
+                          raceHasError
+                            ? "border-red-500 focus-visible:ring-red-500"
+                            : ""
+                        } ${row.is_dnf_race ? "opacity-40 cursor-not-allowed" : ""}`}
                       />
                     </td>
                     <td className="py-1.5 px-1 text-center">
                       <Checkbox
                         checked={row.is_dnf_race}
-                        onCheckedChange={(checked) =>
-                          updateField(driver.id, "is_dnf_race", !!checked)
-                        }
+                        onCheckedChange={(checked) => {
+                          const isDnf = !!checked;
+                          setResultForm((prev) => {
+                            const next = new Map(prev);
+                            const existing = next.get(driver.id);
+                            if (existing) {
+                              next.set(driver.id, {
+                                ...existing,
+                                is_dnf_race: isDnf,
+                                // Clear position when DNF is checked
+                                finish_position_race: isDnf
+                                  ? null
+                                  : existing.finish_position_race,
+                              });
+                            }
+                            return next;
+                          });
+                        }}
                       />
                     </td>
                     {isSprint && (
@@ -581,8 +760,9 @@ function ResultsEntryCard({
                           <Input
                             type="number"
                             min={1}
-                            max={22}
-                            placeholder="—"
+                            max={validation.sprintMaxPos}
+                            placeholder={row.is_dnf_sprint ? "DNF" : "—"}
+                            disabled={row.is_dnf_sprint}
                             value={row.finish_position_sprint ?? ""}
                             onChange={(e) => {
                               const val = e.target.value;
@@ -592,19 +772,34 @@ function ResultsEntryCard({
                                 val === "" ? null : parseInt(val, 10)
                               );
                             }}
-                            className="w-16 h-8 text-center text-sm px-1"
+                            className={`w-16 h-8 text-center text-sm px-1 ${
+                              sprintHasError
+                                ? "border-red-500 focus-visible:ring-red-500"
+                                : ""
+                            } ${row.is_dnf_sprint ? "opacity-40 cursor-not-allowed" : ""}`}
                           />
                         </td>
                         <td className="py-1.5 px-1 text-center">
                           <Checkbox
                             checked={row.is_dnf_sprint}
-                            onCheckedChange={(checked) =>
-                              updateField(
-                                driver.id,
-                                "is_dnf_sprint",
-                                !!checked
-                              )
-                            }
+                            onCheckedChange={(checked) => {
+                              const isDnf = !!checked;
+                              setResultForm((prev) => {
+                                const next = new Map(prev);
+                                const existing = next.get(driver.id);
+                                if (existing) {
+                                  next.set(driver.id, {
+                                    ...existing,
+                                    is_dnf_sprint: isDnf,
+                                    // Clear position when DNF is checked
+                                    finish_position_sprint: isDnf
+                                      ? null
+                                      : existing.finish_position_sprint,
+                                  });
+                                }
+                                return next;
+                              });
+                            }}
                           />
                         </td>
                       </>
@@ -623,7 +818,7 @@ function ResultsEntryCard({
         )}
       </CardContent>
       <CardFooter>
-        <Button onClick={handleSave} disabled={saving}>
+        <Button onClick={handleSave} disabled={saving || !validation.isValid}>
           {saving ? "Saving…" : "Save Results"}
         </Button>
       </CardFooter>
@@ -755,14 +950,13 @@ function AssignmentsCard({
                 No assignments found for this race.
               </p>
             ) : (
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[400px]">
                 <thead>
                   <tr className="border-b text-muted-foreground">
                     <th className="text-left py-2">Player</th>
                     <th className="text-left py-2">Driver</th>
-                    <th className="text-left py-2 hidden sm:table-cell">
-                      Team
-                    </th>
+                    <th className="text-left py-2">Team</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -778,13 +972,14 @@ function AssignmentsCard({
                           {a.driver_abbreviation}
                         </span>
                       </td>
-                      <td className="py-1.5 text-muted-foreground hidden sm:table-cell">
+                      <td className="py-1.5 text-muted-foreground">
                         {a.driver_team}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         )}
@@ -804,44 +999,142 @@ function ScoreCalculationCard({
 }) {
   const [msg, setMsg] = useState<Message | null>(null);
   const [calculating, setCalculating] = useState(false);
+  const [statusMsg, setStatusMsg] = useState<Message | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [confirmComplete, setConfirmComplete] = useState(false);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Score Calculation</CardTitle>
+        <CardTitle>Scores & Status</CardTitle>
         <CardDescription>
-          Manually trigger score calculation for R{race.round_number}:{" "}
-          {race.race_name}. Normally happens automatically after fetching
-          results.
+          Calculate scores and manage race status for R{race.round_number}:{" "}
+          {race.race_name}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {resultCount === 0 && (
-          <div className="rounded-md p-3 text-sm bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
-            No results found for this race. Fetch or enter results first.
+      <CardContent className="space-y-4">
+        {/* Score Calculation */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold">Score Calculation</h3>
+
+          {resultCount === 0 && (
+            <div className="rounded-md p-3 text-sm bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+              No results found for this race. Fetch or enter results first.
+            </div>
+          )}
+
+          <Button
+            size="sm"
+            disabled={calculating || resultCount === 0}
+            onClick={async () => {
+              setCalculating(true);
+              setMsg(null);
+              const res = await admin.calculateScores(race.id);
+              setMsg({
+                type: res.success ? "success" : "error",
+                text: res.message,
+              });
+              setCalculating(false);
+            }}
+          >
+            {calculating
+              ? "Calculating…"
+              : `Calculate Scores for Round ${race.round_number}`}
+          </Button>
+
+          {msg && <Alert message={msg} />}
+        </div>
+
+        <div className="border-t" />
+
+        {/* Race Status */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold">Race Status</h3>
+
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground">Current status:</span>
+            <Badge
+              variant={
+                race.status === "completed"
+                  ? "default"
+                  : race.status === "active"
+                    ? "secondary"
+                    : "outline"
+              }
+            >
+              {race.status}
+            </Badge>
           </div>
-        )}
 
-        <Button
-          size="sm"
-          disabled={calculating || resultCount === 0}
-          onClick={async () => {
-            setCalculating(true);
-            setMsg(null);
-            const res = await admin.calculateScores(race.id);
-            setMsg({
-              type: res.success ? "success" : "error",
-              text: res.message,
-            });
-            setCalculating(false);
-          }}
-        >
-          {calculating
-            ? "Calculating…"
-            : `Calculate Scores for Round ${race.round_number}`}
-        </Button>
+          {race.status === "active" && (
+            <div className="flex items-center gap-3">
+              {!confirmComplete ? (
+                <Button
+                  size="sm"
+                  disabled={updatingStatus || resultCount === 0}
+                  onClick={() => setConfirmComplete(true)}
+                >
+                  Mark as Completed
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-yellow-400">
+                    This will also activate the next race.
+                  </span>
+                  <Button
+                    size="sm"
+                    disabled={updatingStatus}
+                    onClick={async () => {
+                      setUpdatingStatus(true);
+                      setStatusMsg(null);
+                      const res = await admin.updateRaceStatus(
+                        race.id,
+                        "completed"
+                      );
+                      setStatusMsg({
+                        type: res.success ? "success" : "error",
+                        text: res.message,
+                      });
+                      setConfirmComplete(false);
+                      setUpdatingStatus(false);
+                    }}
+                  >
+                    {updatingStatus ? "Updating…" : "Yes, complete"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setConfirmComplete(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
 
-        {msg && <Alert message={msg} />}
+          {race.status === "completed" && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={updatingStatus}
+              onClick={async () => {
+                setUpdatingStatus(true);
+                setStatusMsg(null);
+                const res = await admin.updateRaceStatus(race.id, "active");
+                setStatusMsg({
+                  type: res.success ? "success" : "error",
+                  text: res.message,
+                });
+                setUpdatingStatus(false);
+              }}
+            >
+              {updatingStatus ? "Updating…" : "Revert to Active"}
+            </Button>
+          )}
+
+          {statusMsg && <Alert message={statusMsg} />}
+        </div>
       </CardContent>
     </Card>
   );
@@ -908,7 +1201,10 @@ export default function AdminPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-muted-foreground">Loading admin panel…</p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary" />
+          <p className="text-sm text-muted-foreground">Loading admin panel…</p>
+        </div>
       </div>
     );
   }
@@ -919,6 +1215,9 @@ export default function AdminPage() {
         <Card>
           <CardContent className="py-8 text-center">
             <p className="text-red-400">{error}</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Try refreshing the page.
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -934,101 +1233,98 @@ export default function AdminPage() {
     <div className="max-w-3xl mx-auto py-10 px-4 space-y-6">
       <h1 className="text-2xl font-bold">Admin Panel</h1>
 
-      {/* Race selector */}
-      <div className="flex items-center gap-3">
-        <span className="text-sm text-muted-foreground shrink-0">
-          Manage race:
-        </span>
-        <Select value={selectedRaceId} onValueChange={setSelectedRaceId}>
-          <SelectTrigger className="w-full sm:w-[280px]">
-            <SelectValue placeholder="Select a race…" />
-          </SelectTrigger>
-          <SelectContent>
-            {activeRaces.length > 0 && (
-              <>
-                {activeRaces.map((r) => (
-                  <SelectItem key={r.id} value={r.id}>
-                    R{r.round_number}: {r.race_name}{" "}
-                    {r.is_sprint_weekend ? "🏃" : ""} — Active
-                  </SelectItem>
-                ))}
-              </>
-            )}
-            {upcomingRaces.length > 0 && (
-              <>
-                {upcomingRaces.map((r) => (
-                  <SelectItem key={r.id} value={r.id}>
-                    R{r.round_number}: {r.race_name}{" "}
-                    {r.is_sprint_weekend ? "🏃" : ""}
-                  </SelectItem>
-                ))}
-              </>
-            )}
-            {completedRaces.length > 0 && (
-              <>
-                {completedRaces.map((r) => (
-                  <SelectItem key={r.id} value={r.id}>
-                    R{r.round_number}: {r.race_name}{" "}
-                    {r.is_sprint_weekend ? "🏃" : ""} — Completed
-                  </SelectItem>
-                ))}
-              </>
-            )}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Card 1: Competition Status */}
+      {/* ---- Competition-wide section ---- */}
       <CompetitionStatusCard
         members={members}
         assignmentCount={assignmentCount}
+        acceptingMembers={admin.acceptingMembers}
+        onToggleAccepting={(value) => admin.toggleAcceptingMembers(value)}
       />
 
-      {/* Remaining cards require a selected race */}
-      {selectedRace ? (
-        <>
-          {/* Card 2: Race Management */}
-          <RaceManagementCard
-            race={selectedRace}
-            competitionId={competitionId!}
-            resultCount={raceResults.length}
-            admin={admin}
-          />
+      <AssignmentsCard
+        assignmentCount={assignmentCount}
+        memberCount={members.length}
+        raceAssignments={raceAssignments}
+        raceLoading={raceLoading}
+        selectedRace={selectedRace}
+        admin={admin}
+      />
 
-          {/* Card 3: Results Entry */}
-          <ResultsEntryCard
-            race={selectedRace}
-            drivers={drivers}
-            existingResults={raceResults}
-            admin={admin}
-          />
+      {/* ---- Race-specific section ---- */}
+      <div className="border-t pt-6 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <h2 className="text-lg font-semibold shrink-0">Race Management</h2>
+          <Select value={selectedRaceId} onValueChange={setSelectedRaceId}>
+            <SelectTrigger className="w-full sm:w-[280px]">
+              <SelectValue placeholder="Select a race…" />
+            </SelectTrigger>
+            <SelectContent>
+              {activeRaces.length > 0 && (
+                <>
+                  {activeRaces.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      R{r.round_number}: {r.race_name}{" "}
+                      {r.is_sprint_weekend ? "🏃" : ""} — Active
+                    </SelectItem>
+                  ))}
+                </>
+              )}
+              {upcomingRaces.length > 0 && (
+                <>
+                  {upcomingRaces.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      R{r.round_number}: {r.race_name}{" "}
+                      {r.is_sprint_weekend ? "🏃" : ""}
+                    </SelectItem>
+                  ))}
+                </>
+              )}
+              {completedRaces.length > 0 && (
+                <>
+                  {completedRaces.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      R{r.round_number}: {r.race_name}{" "}
+                      {r.is_sprint_weekend ? "🏃" : ""} — Completed
+                    </SelectItem>
+                  ))}
+                </>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
 
-          {/* Card 4: Assignments */}
-          <AssignmentsCard
-            assignmentCount={assignmentCount}
-            memberCount={members.length}
-            raceAssignments={raceAssignments}
-            raceLoading={raceLoading}
-            selectedRace={selectedRace}
-            admin={admin}
-          />
+        {selectedRace ? (
+          <>
+            <RaceManagementCard
+              race={selectedRace}
+              competitionId={competitionId!}
+              resultCount={raceResults.length}
+              admin={admin}
+            />
 
-          {/* Card 5: Score Calculation */}
-          <ScoreCalculationCard
-            race={selectedRace}
-            resultCount={raceResults.length}
-            admin={admin}
-          />
-        </>
-      ) : (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="text-sm text-muted-foreground">
-              Select a race above to manage it.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+            <ResultsEntryCard
+              race={selectedRace}
+              drivers={drivers}
+              existingResults={raceResults}
+              admin={admin}
+            />
+
+            <ScoreCalculationCard
+              race={selectedRace}
+              resultCount={raceResults.length}
+              admin={admin}
+            />
+          </>
+        ) : (
+          <Card>
+            <CardContent className="py-8 text-center">
+              <p className="text-sm text-muted-foreground">
+                Select a race to manage lock timers, results, and scores.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }

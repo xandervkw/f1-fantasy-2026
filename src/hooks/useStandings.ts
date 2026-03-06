@@ -30,6 +30,7 @@ interface ScoreRow {
 
 export function useStandings(competitionId: string | null) {
   const [scores, setScores] = useState<ScoreRow[]>([]);
+  const [members, setMembers] = useState<{ user_id: string; display_name: string }[]>([]);
   const [recentRaceId, setRecentRaceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,11 +42,16 @@ export function useStandings(competitionId: string | null) {
     }
 
     try {
-      // Fetch all scores for this competition (with profile join)
-      const [scoresRes, raceRes] = await Promise.all([
+      // Fetch scores, members, and most recent completed race in parallel
+      const [scoresRes, membersRes, raceRes] = await Promise.all([
         supabase
           .from("scores")
           .select("user_id, race_id, total_points, race_points, race_position_off, sprint_position_off, profile:profiles(display_name)")
+          .eq("competition_id", competitionId),
+        // All competition members (so we can show everyone even before scores exist)
+        supabase
+          .from("competition_members")
+          .select("user_id, profiles(display_name)")
           .eq("competition_id", competitionId),
         // Most recent completed race (for tiebreaker 3)
         supabase
@@ -59,8 +65,16 @@ export function useStandings(competitionId: string | null) {
       ]);
 
       if (scoresRes.error) throw scoresRes.error;
+      if (membersRes.error) throw membersRes.error;
 
       setScores((scoresRes.data ?? []) as unknown as ScoreRow[]);
+      setMembers(
+        (membersRes.data ?? []).map((m: Record<string, unknown>) => ({
+          user_id: m.user_id as string,
+          display_name:
+            (m.profiles as { display_name: string } | null)?.display_name ?? "Unknown",
+        }))
+      );
       setRecentRaceId(raceRes.data?.id ?? null);
       setError(null);
     } catch (e) {
@@ -102,11 +116,9 @@ export function useStandings(competitionId: string | null) {
     };
   }, [competitionId, fetchData]);
 
-  // Aggregate and rank
+  // Aggregate and rank — always includes all competition members
   const standings: StandingRow[] = useMemo(() => {
-    if (scores.length === 0) return [];
-
-    // Group by user
+    // Seed the map with all competition members (so everyone always shows up)
     const byUser = new Map<
       string,
       {
@@ -119,6 +131,18 @@ export function useStandings(competitionId: string | null) {
       }
     >();
 
+    for (const m of members) {
+      byUser.set(m.user_id, {
+        displayName: m.display_name,
+        totalPoints: 0,
+        racesPlayed: 0,
+        perfectPredictions: 0,
+        oneOffPredictions: 0,
+        recentRacePoints: 0,
+      });
+    }
+
+    // Layer scores on top
     for (const s of scores) {
       const existing = byUser.get(s.user_id);
       const isPerfect = s.race_position_off === 0;
@@ -144,6 +168,8 @@ export function useStandings(competitionId: string | null) {
         });
       }
     }
+
+    if (byUser.size === 0) return [];
 
     // Convert to array and sort with tiebreakers
     const rows = Array.from(byUser.entries()).map(([userId, data]) => ({
@@ -182,7 +208,7 @@ export function useStandings(competitionId: string | null) {
     }
 
     return rows;
-  }, [scores, recentRaceId]);
+  }, [scores, members, recentRaceId]);
 
   return { standings, loading, error, refetch: fetchData };
 }

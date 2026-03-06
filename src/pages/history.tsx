@@ -45,7 +45,7 @@ function HistoryColGroup() {
   return (
     <colgroup>
       <col />
-      <col className="hidden sm:table-column" />
+      <col />
       <col className="w-12" />
       <col className="w-14" />
       <col className="w-14" />
@@ -76,12 +76,13 @@ function ByRaceTable({
         {showSprint && (
           <h3 className="text-sm font-medium mb-2">Main Race</h3>
         )}
-        <table className="w-full text-sm table-fixed">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm table-fixed min-w-[440px]">
           <HistoryColGroup />
           <thead>
             <tr className="border-b text-muted-foreground">
               <th className="text-left py-2.5">Player</th>
-              <th className="text-left py-2.5 hidden sm:table-cell">Driver</th>
+              <th className="text-left py-2.5 ">Driver</th>
               <th className="text-right py-2.5">Pred</th>
               <th className="text-right py-2.5">Actual</th>
               <th className="text-right py-2.5">Off</th>
@@ -112,11 +113,8 @@ function ByRaceTable({
                         </Badge>
                       )}
                     </span>
-                    <div className="text-xs text-muted-foreground truncate sm:hidden">
-                      {row.driverName}
-                    </div>
                   </td>
-                  <td className="py-2 text-muted-foreground truncate hidden sm:table-cell">
+                  <td className="py-2 text-muted-foreground truncate">
                     {row.driverName}
                   </td>
                   <td className="py-2 text-right tabular-nums">
@@ -147,18 +145,20 @@ function ByRaceTable({
             })}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Sprint table (only for sprint weekends) */}
       {showSprint && (
         <div>
           <h3 className="text-sm font-medium mb-2">Sprint Race</h3>
-          <table className="w-full text-sm table-fixed">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm table-fixed min-w-[440px]">
             <HistoryColGroup />
             <thead>
               <tr className="border-b text-muted-foreground">
                 <th className="text-left py-2.5">Player</th>
-                <th className="text-left py-2.5 hidden sm:table-cell">Driver</th>
+                <th className="text-left py-2.5 ">Driver</th>
                 <th className="text-right py-2.5">Pred</th>
                 <th className="text-right py-2.5">Actual</th>
                 <th className="text-right py-2.5">Off</th>
@@ -178,7 +178,7 @@ function ByRaceTable({
                     }`}
                   >
                     <td className="py-2 truncate">{row.displayName}</td>
-                    <td className="py-2 text-muted-foreground truncate hidden sm:table-cell">
+                    <td className="py-2 text-muted-foreground truncate">
                       {row.driverName}
                     </td>
                     <td className="py-2 text-right tabular-nums">
@@ -209,6 +209,7 @@ function ByRaceTable({
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>
@@ -228,12 +229,13 @@ function ByPlayerTable({ rows }: { rows: HistoryScoreRow[] }) {
   );
 
   return (
-    <table className="w-full text-sm table-fixed">
+    <div className="overflow-x-auto">
+    <table className="w-full text-sm table-fixed min-w-[440px]">
       <HistoryColGroup />
       <thead>
         <tr className="border-b text-muted-foreground">
           <th className="text-left py-2.5">Race</th>
-          <th className="text-left py-2.5 hidden sm:table-cell">Driver</th>
+          <th className="text-left py-2.5 ">Driver</th>
           <th className="text-right py-2.5">Pred</th>
           <th className="text-right py-2.5">Actual</th>
           <th className="text-right py-2.5">Off</th>
@@ -251,11 +253,8 @@ function ByPlayerTable({ rows }: { rows: HistoryScoreRow[] }) {
               <td className="py-2 truncate">
                 <span className="font-medium">R{row.roundNumber}</span>{" "}
                 <span className="text-muted-foreground">{row.raceName}</span>
-                <div className="text-xs text-muted-foreground truncate sm:hidden">
-                  {row.driverName}
-                </div>
               </td>
-              <td className="py-2 text-muted-foreground truncate hidden sm:table-cell">
+              <td className="py-2 text-muted-foreground truncate">
                 {row.driverName}
               </td>
               <td className="py-2 text-right tabular-nums">
@@ -289,7 +288,7 @@ function ByPlayerTable({ rows }: { rows: HistoryScoreRow[] }) {
                 <td className="py-1.5 pl-4 truncate">
                   <span className="text-xs">└ Sprint</span>
                 </td>
-                <td className="py-1.5 truncate hidden sm:table-cell">
+                <td className="py-1.5 truncate">
                   {row.driverName}
                 </td>
                 <td className="py-1.5 text-right tabular-nums">
@@ -320,6 +319,7 @@ function ByPlayerTable({ rows }: { rows: HistoryScoreRow[] }) {
         </tr>
       </tfoot>
     </table>
+    </div>
   );
 }
 
@@ -384,7 +384,10 @@ export default function HistoryPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-muted-foreground">Loading history…</p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary" />
+          <p className="text-sm text-muted-foreground">Loading history…</p>
+        </div>
       </div>
     );
   }

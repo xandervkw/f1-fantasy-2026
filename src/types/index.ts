@@ -4,6 +4,7 @@ export interface Competition {
   invite_code: string;
   season_year: number;
   created_at: string;
+  accepting_members: boolean;
 }
 
 export interface Profile {
@@ -35,6 +36,10 @@ export interface Race {
   prediction_lock_time: string | null;
   /** Custom sprint lock time — overrides sprint_qualifying_time - 5 min when set */
   sprint_prediction_lock_time: string | null;
+  /** Admin has manually unlocked race predictions (cron won't re-lock) */
+  admin_race_unlocked: boolean;
+  /** Admin has manually unlocked sprint predictions (cron won't re-lock) */
+  admin_sprint_unlocked: boolean;
 }
 
 export interface Driver {

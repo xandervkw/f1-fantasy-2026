@@ -227,7 +227,7 @@ Deno.serve(async (req) => {
 
   console.log(`Stored ${resultRows.length} result rows for round ${roundNumber}`);
 
-  // ---- 9. Mark race as completed ----
+  // ---- 9. Mark race as completed + activate next race ----
   const { error: statusErr } = await supabase
     .from("races")
     .update({ status: "completed" })
@@ -236,6 +236,31 @@ Deno.serve(async (req) => {
   if (statusErr) {
     console.error("Failed to update race status:", statusErr.message);
     // Non-fatal — continue to score calculation
+  } else {
+    // Auto-activate the next upcoming race
+    const { data: nextRace } = await supabase
+      .from("races")
+      .select("id, race_name, round_number")
+      .eq("season", 2026)
+      .eq("status", "upcoming")
+      .order("round_number", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (nextRace) {
+      const { error: activateErr } = await supabase
+        .from("races")
+        .update({ status: "active" })
+        .eq("id", nextRace.id);
+
+      if (activateErr) {
+        console.error("Failed to activate next race:", activateErr.message);
+      } else {
+        console.log(
+          `Activated next race: R${nextRace.round_number} ${nextRace.race_name}`
+        );
+      }
+    }
   }
 
   // ---- 10. Calculate scores via calculate-scores edge function ----

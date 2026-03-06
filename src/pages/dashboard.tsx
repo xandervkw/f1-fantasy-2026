@@ -49,6 +49,7 @@ function PredictionSection({
   position,
   setPosition,
   isLocked,
+  adminUnlocked,
   onSubmit,
   saving,
   existingPosition,
@@ -59,6 +60,7 @@ function PredictionSection({
   position: string;
   setPosition: (v: string) => void;
   isLocked: boolean;
+  adminUnlocked: boolean;
   onSubmit: () => void;
   saving: boolean;
   existingPosition: number | null | undefined;
@@ -73,7 +75,13 @@ function PredictionSection({
     <div className="space-y-3 rounded-lg border p-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">{label} Prediction</h3>
-        {!countdown.isExpired ? (
+        {isLocked ? (
+          <Badge variant="secondary">Locked</Badge>
+        ) : adminUnlocked ? (
+          <Badge variant="default" className="bg-green-600 text-xs">
+            Open
+          </Badge>
+        ) : !countdown.isExpired ? (
           <Badge variant="outline" className="font-mono text-xs">
             {formatCountdown(countdown)}
           </Badge>
@@ -266,16 +274,19 @@ export default function DashboardPage() {
     return "race_active";
   }, [race, assignment, raceLoading, predLoading, raceError]);
 
-  // Locking logic (dual enforcement: DB flag + client-side countdown)
-  // Sprint and race lock independently
+  // Locking logic — three layers:
+  //   1. Completed race → always locked
+  //   2. Admin unlock flag → always open (overrides timer + DB flag)
+  //   3. Otherwise: locked if DB flag says locked OR countdown expired
+  //      (countdown acts as client-side safeguard before cron sets DB flag)
   const isRaceLocked =
-    prediction?.is_locked ||
-    raceCountdown.isExpired ||
-    race?.status === "completed";
+    race?.status === "completed" ||
+    (!race?.admin_race_unlocked &&
+      (prediction?.is_locked || raceCountdown.isExpired));
   const isSprintLocked =
-    prediction?.is_sprint_locked ||
-    sprintCountdown.isExpired ||
-    race?.status === "completed";
+    race?.status === "completed" ||
+    (!race?.admin_sprint_unlocked &&
+      (prediction?.is_sprint_locked || sprintCountdown.isExpired));
 
   // Submit handlers
   async function handleSubmitRace() {
@@ -326,7 +337,10 @@ export default function DashboardPage() {
   if (viewMode === "loading") {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-muted-foreground">Loading dashboard…</p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary" />
+          <p className="text-sm text-muted-foreground">Loading dashboard…</p>
+        </div>
       </div>
     );
   }
@@ -397,7 +411,7 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-2xl mx-auto py-10 px-4 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start sm:items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold">F1 Fantasy 2026</h1>
           <p className="text-muted-foreground">
@@ -458,6 +472,7 @@ export default function DashboardPage() {
               position={sprintPosition}
               setPosition={setSprintPosition}
               isLocked={!!isSprintLocked}
+              adminUnlocked={!!race?.admin_sprint_unlocked}
               onSubmit={handleSubmitSprint}
               saving={saving}
               existingPosition={prediction?.predicted_position_sprint}
@@ -477,6 +492,7 @@ export default function DashboardPage() {
               position={racePosition}
               setPosition={setRacePosition}
               isLocked={!!isRaceLocked}
+              adminUnlocked={!!race?.admin_race_unlocked}
               onSubmit={handleSubmitRace}
               saving={saving}
               existingPosition={prediction?.predicted_position_race}

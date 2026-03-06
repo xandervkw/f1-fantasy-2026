@@ -141,9 +141,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (inviteCode: string): Promise<{ error: string | null }> => {
       if (!user) return { error: "Not logged in" };
 
+      // 1. Look up competition by invite code
       const { data: competition, error: lookupError } = await supabase
         .from("competitions")
-        .select("id")
+        .select("id, accepting_members")
         .eq("invite_code", inviteCode.trim().toUpperCase())
         .maybeSingle();
 
@@ -151,6 +152,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: "Invalid invite code. Please check and try again." };
       }
 
+      // 2. Check if competition is accepting new members
+      if (!competition.accepting_members) {
+        return {
+          error: "This competition is no longer accepting new members.",
+        };
+      }
+
+      // 3. Check 22-member cap
+      const { count: memberCount } = await supabase
+        .from("competition_members")
+        .select("id", { count: "exact", head: true })
+        .eq("competition_id", competition.id);
+
+      if (memberCount != null && memberCount >= 22) {
+        return { error: "This competition is full (22/22 players)." };
+      }
+
+      // 4. Insert membership
       const { error: insertError } = await supabase
         .from("competition_members")
         .insert({
@@ -162,9 +181,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (insertError.code === "23505") {
           return { error: "You've already joined this competition." };
         }
+        // RLS violation when competition is closed
+        if (insertError.code === "42501") {
+          return {
+            error: "This competition is no longer accepting new members.",
+          };
+        }
         return { error: "Failed to join. Please try again." };
       }
 
+      // 5. If driver assignments already exist, auto-generate for the late-joiner
+      const { count: assignmentCount } = await supabase
+        .from("driver_assignments")
+        .select("id", { count: "exact", head: true })
+        .eq("competition_id", competition.id);
+
+      if (assignmentCount && assignmentCount > 0) {
+        const { error: rpcError } = await supabase.rpc("assign_late_joiner", {
+          p_competition_id: competition.id,
+          p_user_id: user.id,
+        });
+        if (rpcError) {
+          console.error(
+            "[Auth] assign_late_joiner error:",
+            rpcError.message
+          );
+          // Non-fatal — they joined but may need manual assignment
+        }
+      }
+
+      // 6. Reload membership state
       const membership = await loadMembership(user.id);
       setCompetitionMembership(membership);
 

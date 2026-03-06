@@ -49,6 +49,11 @@ dist-ssr
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
+# Playwright
+test-results/
+playwright-report/
+tests/e2e/.auth/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

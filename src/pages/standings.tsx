@@ -27,7 +27,10 @@ export default function StandingsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-muted-foreground">Loading standings…</p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary" />
+          <p className="text-sm text-muted-foreground">Loading standings…</p>
+        </div>
       </div>
     );
   }
@@ -55,15 +58,17 @@ export default function StandingsPage() {
         <h1 className="text-2xl font-bold">Standings</h1>
         <Card>
           <CardContent className="py-8 text-center space-y-2">
-            <p className="text-lg font-medium">No scores yet</p>
+            <p className="text-lg font-medium">No players yet</p>
             <p className="text-sm text-muted-foreground">
-              Standings will appear once the first race results are in.
+              Standings will appear once players join the competition.
             </p>
           </CardContent>
         </Card>
       </div>
     );
   }
+
+  const hasScores = standings.some((r) => r.racesPlayed > 0);
 
   // ---------- main ----------
   return (
@@ -79,19 +84,21 @@ export default function StandingsPage() {
         <CardHeader>
           <CardTitle>F1 Fantasy 2026</CardTitle>
           <CardDescription>
-            {standings.length} player{standings.length !== 1 ? "s" : ""} ·{" "}
-            {standings[0]?.racesPlayed ?? 0} race
-            {(standings[0]?.racesPlayed ?? 0) !== 1 ? "s" : ""} scored
+            {standings.length} player{standings.length !== 1 ? "s" : ""}
+            {hasScores
+              ? ` · ${standings[0]?.racesPlayed ?? 0} race${(standings[0]?.racesPlayed ?? 0) !== 1 ? "s" : ""} scored`
+              : " · Season not started"}
           </CardDescription>
         </CardHeader>
 
         <CardContent>
-          <table className="w-full text-sm table-fixed">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm table-fixed min-w-[380px]">
             <colgroup>
               <col className="w-10" />
               <col />
               <col className="w-14" />
-              <col className="w-14 hidden sm:table-column" />
+              <col className="w-14" />
               <col className="w-16" />
             </colgroup>
             <thead>
@@ -99,9 +106,7 @@ export default function StandingsPage() {
                 <th className="text-left py-2.5">#</th>
                 <th className="text-left py-2.5">Player</th>
                 <th className="text-right py-2.5">Pts</th>
-                <th className="text-right py-2.5 hidden sm:table-cell">
-                  Races
-                </th>
+                <th className="text-right py-2.5">Races</th>
                 <th className="text-right py-2.5">Perfect</th>
               </tr>
             </thead>
@@ -147,7 +152,7 @@ export default function StandingsPage() {
                       {row.totalPoints}
                     </td>
 
-                    <td className="py-2.5 text-right tabular-nums text-muted-foreground hidden sm:table-cell">
+                    <td className="py-2.5 text-right tabular-nums text-muted-foreground">
                       {row.racesPlayed}
                     </td>
 
@@ -168,6 +173,7 @@ export default function StandingsPage() {
               })}
             </tbody>
           </table>
+          </div>
         </CardContent>
       </Card>
     </div>

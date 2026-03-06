@@ -42,6 +42,7 @@ export interface UseAdminReturn {
   drivers: Driver[];
   members: MemberInfo[];
   assignmentCount: number;
+  acceptingMembers: boolean;
 
   // Race-specific data
   raceResults: Array<{
@@ -64,7 +65,11 @@ export interface UseAdminReturn {
     raceId: string,
     results: ResultInput[]
   ) => Promise<MutationResult>;
-  lockPredictions: () => Promise<MutationResult>;
+  lockPredictions: (
+    raceId: string,
+    competitionId: string,
+    type: "race" | "sprint" | "both"
+  ) => Promise<MutationResult>;
   unlockPredictions: (
     raceId: string,
     competitionId: string,
@@ -76,8 +81,13 @@ export interface UseAdminReturn {
     value: string | null
   ) => Promise<MutationResult>;
   calculateScores: (raceId: string) => Promise<MutationResult>;
+  updateRaceStatus: (
+    raceId: string,
+    status: "active" | "completed" | "upcoming"
+  ) => Promise<MutationResult>;
   generateAssignments: () => Promise<MutationResult>;
   resetAssignments: () => Promise<MutationResult>;
+  toggleAcceptingMembers: (value: boolean) => Promise<MutationResult>;
 
   // Refetch
   refetch: () => void;
@@ -94,6 +104,7 @@ export function useAdmin(
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [members, setMembers] = useState<MemberInfo[]>([]);
   const [assignmentCount, setAssignmentCount] = useState(0);
+  const [acceptingMembers, setAcceptingMembers] = useState(true);
 
   const [raceResults, setRaceResults] = useState<
     UseAdminReturn["raceResults"]
@@ -110,23 +121,29 @@ export function useAdmin(
     setLoading(true);
     setError(null);
     try {
-      const [racesRes, driversRes, membersRes, aCount] = await Promise.all([
-        supabase
-          .from("races")
-          .select("*")
-          .eq("season", 2026)
-          .order("round_number"),
-        supabase
-          .from("drivers")
-          .select("*")
-          .eq("season", 2026)
-          .order("full_name"),
-        supabase
-          .from("competition_members")
-          .select("user_id, profiles(display_name)")
-          .eq("competition_id", competitionId),
-        checkExistingAssignments(competitionId),
-      ]);
+      const [racesRes, driversRes, membersRes, aCount, compRes] =
+        await Promise.all([
+          supabase
+            .from("races")
+            .select("*")
+            .eq("season", 2026)
+            .order("round_number"),
+          supabase
+            .from("drivers")
+            .select("*")
+            .eq("season", 2026)
+            .order("full_name"),
+          supabase
+            .from("competition_members")
+            .select("user_id, profiles(display_name)")
+            .eq("competition_id", competitionId),
+          checkExistingAssignments(competitionId),
+          supabase
+            .from("competitions")
+            .select("accepting_members")
+            .eq("id", competitionId)
+            .single(),
+        ]);
 
       if (racesRes.error) throw racesRes.error;
       if (driversRes.error) throw driversRes.error;
@@ -141,6 +158,7 @@ export function useAdmin(
         }))
       );
       setAssignmentCount(aCount);
+      setAcceptingMembers(compRes.data?.accepting_members ?? true);
     } catch (err: any) {
       console.error("[useAdmin] loadGlobalData error:", err);
       setError(err.message ?? "Failed to load admin data");
@@ -280,23 +298,44 @@ export function useAdmin(
     [loadRaceData]
   );
 
-  const lockPredictions = useCallback(async (): Promise<MutationResult> => {
-    try {
-      const { data, error: fnError } = await supabase.functions.invoke(
-        "lock-predictions"
-      );
-      if (fnError) {
-        return { success: false, message: fnError.message ?? "Lock failed" };
+  const lockPredictions = useCallback(
+    async (
+      raceId: string,
+      cId: string,
+      type: "race" | "sprint" | "both"
+    ): Promise<MutationResult> => {
+      try {
+        const { data, error: rpcErr } = await supabase.rpc(
+          "lock_race_predictions",
+          {
+            p_race_id: raceId,
+            p_competition_id: cId,
+            p_type: type,
+          }
+        );
+
+        if (rpcErr) throw rpcErr;
+
+        const result = data as {
+          race_locked: number;
+          sprint_locked: number;
+          missed: number;
+        };
+
+        await loadGlobalData(); // refresh race flags
+        return {
+          success: true,
+          message: `Locked: ${result.race_locked} race${result.sprint_locked > 0 ? `, ${result.sprint_locked} sprint` : ""}${result.missed > 0 ? `, ${result.missed} missed` : ""}.`,
+        };
+      } catch (err: any) {
+        return {
+          success: false,
+          message: err.message ?? "Failed to lock predictions",
+        };
       }
-      const result = data?.result ?? data;
-      return {
-        success: true,
-        message: `Locked: ${result?.race_locked ?? 0} race, ${result?.sprint_locked ?? 0} sprint, ${result?.missed ?? 0} missed.`,
-      };
-    } catch (err: any) {
-      return { success: false, message: err.message ?? "Failed to lock predictions" };
-    }
-  }, []);
+    },
+    [loadGlobalData]
+  );
 
   const unlockPredictions = useCallback(
     async (
@@ -305,24 +344,23 @@ export function useAdmin(
       type: "race" | "sprint" | "both"
     ): Promise<MutationResult> => {
       try {
-        const updates: Record<string, boolean> = {};
-        if (type === "race" || type === "both") updates.is_locked = false;
-        if (type === "sprint" || type === "both")
-          updates.is_sprint_locked = false;
+        const { data, error: rpcErr } = await supabase.rpc(
+          "unlock_race_predictions",
+          {
+            p_race_id: raceId,
+            p_competition_id: cId,
+            p_type: type,
+          }
+        );
 
-        const { error: updateErr, count } = await supabase
-          .from("predictions")
-          .update(updates)
-          .eq("race_id", raceId)
-          .eq("competition_id", cId);
+        if (rpcErr) throw rpcErr;
 
-        if (updateErr) {
-          return { success: false, message: updateErr.message };
-        }
+        const result = data as { updated: number; type: string };
 
+        await loadGlobalData(); // refresh race flags
         return {
           success: true,
-          message: `Unlocked ${type} predictions. ${count ?? "?"} rows updated.`,
+          message: `Unlocked ${result.type} predictions. ${result.updated} rows updated.`,
         };
       } catch (err: any) {
         return {
@@ -331,7 +369,7 @@ export function useAdmin(
         };
       }
     },
-    []
+    [loadGlobalData]
   );
 
   const updateLockTime = useCallback(
@@ -370,19 +408,20 @@ export function useAdmin(
   const calculateScores = useCallback(
     async (raceId: string): Promise<MutationResult> => {
       try {
-        const { data, error: fnError } = await supabase.functions.invoke(
-          "calculate-scores",
-          { body: { race_id: raceId } }
+        const { data, error: rpcError } = await supabase.rpc(
+          "calculate_scores",
+          { p_race_id: raceId }
         );
-        if (fnError) {
+        if (rpcError) {
           return {
             success: false,
-            message: fnError.message ?? "Score calculation failed",
+            message: rpcError.message ?? "Score calculation failed",
           };
         }
+        const result = data ?? {};
         return {
           success: true,
-          message: `Scores calculated. ${data?.scores_upserted ?? data?.count ?? "?"} score rows.`,
+          message: `Scores calculated. ${result?.scores_calculated ?? "?"} score rows.`,
         };
       } catch (err: any) {
         return {
@@ -394,11 +433,68 @@ export function useAdmin(
     []
   );
 
+  const updateRaceStatus = useCallback(
+    async (
+      raceId: string,
+      status: "active" | "completed" | "upcoming"
+    ): Promise<MutationResult> => {
+      try {
+        const { error: updateErr } = await supabase
+          .from("races")
+          .update({ status })
+          .eq("id", raceId);
+
+        if (updateErr) {
+          return { success: false, message: updateErr.message };
+        }
+
+        // If marking completed, auto-activate the next upcoming race
+        if (status === "completed") {
+          const { data: nextRace } = await supabase
+            .from("races")
+            .select("id")
+            .eq("season", 2026)
+            .eq("status", "upcoming")
+            .order("round_number", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          if (nextRace) {
+            await supabase
+              .from("races")
+              .update({ status: "active" })
+              .eq("id", nextRace.id);
+          }
+        }
+
+        await loadGlobalData();
+        return {
+          success: true,
+          message:
+            status === "completed"
+              ? "Race marked as completed. Next race activated."
+              : `Race status set to ${status}.`,
+        };
+      } catch (err: any) {
+        return {
+          success: false,
+          message: err.message ?? "Failed to update race status",
+        };
+      }
+    },
+    [loadGlobalData]
+  );
+
   const generateAssignments = useCallback(async (): Promise<MutationResult> => {
     if (!competitionId)
       return { success: false, message: "No competition selected" };
     try {
       const result = await storeAssignments(competitionId);
+      // Auto-close competition for new members
+      await supabase
+        .from("competitions")
+        .update({ accepting_members: false })
+        .eq("id", competitionId);
       await loadGlobalData();
       if (selectedRaceId) await loadRaceData(selectedRaceId);
       return {
@@ -418,6 +514,11 @@ export function useAdmin(
       return { success: false, message: "No competition selected" };
     try {
       const deleted = await deleteAssignments(competitionId);
+      // Re-open competition for new members
+      await supabase
+        .from("competitions")
+        .update({ accepting_members: true })
+        .eq("id", competitionId);
       await loadGlobalData();
       if (selectedRaceId) await loadRaceData(selectedRaceId);
       return {
@@ -432,11 +533,43 @@ export function useAdmin(
     }
   }, [competitionId, loadGlobalData, loadRaceData, selectedRaceId]);
 
+  const toggleAcceptingMembers = useCallback(
+    async (value: boolean): Promise<MutationResult> => {
+      if (!competitionId)
+        return { success: false, message: "No competition selected" };
+      try {
+        const { error: updateErr } = await supabase
+          .from("competitions")
+          .update({ accepting_members: value })
+          .eq("id", competitionId);
+
+        if (updateErr) {
+          return { success: false, message: updateErr.message };
+        }
+
+        await loadGlobalData();
+        return {
+          success: true,
+          message: value
+            ? "Competition is now open for new members."
+            : "Competition is now closed to new members.",
+        };
+      } catch (err: any) {
+        return {
+          success: false,
+          message: err.message ?? "Failed to update competition",
+        };
+      }
+    },
+    [competitionId, loadGlobalData]
+  );
+
   return {
     races,
     drivers,
     members,
     assignmentCount,
+    acceptingMembers,
     raceResults,
     raceAssignments,
     loading,
@@ -446,10 +579,12 @@ export function useAdmin(
     saveResults,
     lockPredictions,
     unlockPredictions,
+    updateRaceStatus,
     updateLockTime,
     calculateScores,
     generateAssignments,
     resetAssignments,
+    toggleAcceptingMembers,
     refetch: loadGlobalData,
     refetchRaceData: loadRaceData,
   };

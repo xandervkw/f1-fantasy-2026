@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import NavBar from "@/components/NavBar";
@@ -7,8 +7,6 @@ import JoinPage from "@/pages/join";
 import DashboardPage from "@/pages/dashboard";
 import StandingsPage from "@/pages/standings";
 import HistoryPage from "@/pages/history";
-import RacePage from "@/pages/race";
-import DraftPage from "@/pages/draft";
 import AdminPage from "@/pages/admin";
 import AboutPage from "@/pages/about";
 
@@ -72,29 +70,9 @@ function App() {
             }
           />
           <Route
-            path="/race"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <RacePage />
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/draft"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <DraftPage />
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
             path="/admin"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAdmin>
                 <AppLayout>
                   <AdminPage />
                 </AppLayout>
@@ -111,6 +89,9 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* Catch-all — redirect to dashboard */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

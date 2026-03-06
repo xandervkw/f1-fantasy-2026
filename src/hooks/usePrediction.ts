@@ -97,6 +97,7 @@ export function usePrediction(
               predicted_position_race: positionRace,
               predicted_position_sprint: positionSprint,
               submitted_at: new Date().toISOString(),
+              is_missed: false,
             },
             { onConflict: "user_id,race_id,competition_id" }
           )
