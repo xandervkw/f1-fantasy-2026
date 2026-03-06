@@ -56,13 +56,6 @@ function formatDateTime(iso: string | null): string {
   });
 }
 
-/** Convert a timestamptz to a local datetime-local input value */
-function toDatetimeLocal(iso: string): string {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
 // ---------- sub-components ----------
 
 function CompetitionStatusCard({
@@ -655,7 +648,7 @@ function ResultsEntryCard({
         {/* Validation errors */}
         {validation.allErrors.length > 0 && (
           <div className="mb-4 rounded-md p-3 text-sm bg-red-500/10 text-red-400 border border-red-500/20 space-y-1">
-            {validation.allErrors.map((err, i) => (
+            {validation.allErrors.map((err: string, i: number) => (
               <p key={i}>⚠ {err}</p>
             ))}
           </div>
