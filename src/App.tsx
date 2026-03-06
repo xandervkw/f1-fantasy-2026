@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import NavBar from "@/components/NavBar";
 import LandingPage from "@/pages/index";
 import JoinPage from "@/pages/join";
 import DashboardPage from "@/pages/dashboard";
@@ -9,6 +10,17 @@ import HistoryPage from "@/pages/history";
 import RacePage from "@/pages/race";
 import DraftPage from "@/pages/draft";
 import AdminPage from "@/pages/admin";
+import AboutPage from "@/pages/about";
+
+/** Layout wrapper that shows the nav bar on authenticated pages */
+function AppLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <NavBar />
+      {children}
+    </>
+  );
+}
 
 function App() {
   return (
@@ -28,12 +40,14 @@ function App() {
             }
           />
 
-          {/* Login + competition required */}
+          {/* Login + competition required — with nav bar */}
           <Route
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <DashboardPage />
+                <AppLayout>
+                  <DashboardPage />
+                </AppLayout>
               </ProtectedRoute>
             }
           />
@@ -41,7 +55,9 @@ function App() {
             path="/standings"
             element={
               <ProtectedRoute>
-                <StandingsPage />
+                <AppLayout>
+                  <StandingsPage />
+                </AppLayout>
               </ProtectedRoute>
             }
           />
@@ -49,7 +65,9 @@ function App() {
             path="/history"
             element={
               <ProtectedRoute>
-                <HistoryPage />
+                <AppLayout>
+                  <HistoryPage />
+                </AppLayout>
               </ProtectedRoute>
             }
           />
@@ -57,7 +75,9 @@ function App() {
             path="/race"
             element={
               <ProtectedRoute>
-                <RacePage />
+                <AppLayout>
+                  <RacePage />
+                </AppLayout>
               </ProtectedRoute>
             }
           />
@@ -65,7 +85,9 @@ function App() {
             path="/draft"
             element={
               <ProtectedRoute>
-                <DraftPage />
+                <AppLayout>
+                  <DraftPage />
+                </AppLayout>
               </ProtectedRoute>
             }
           />
@@ -73,7 +95,19 @@ function App() {
             path="/admin"
             element={
               <ProtectedRoute>
-                <AdminPage />
+                <AppLayout>
+                  <AdminPage />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/about"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <AboutPage />
+                </AppLayout>
               </ProtectedRoute>
             }
           />

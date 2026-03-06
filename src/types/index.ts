@@ -31,6 +31,10 @@ export interface Race {
   sprint_qualifying_time: string | null;
   is_sprint_weekend: boolean;
   status: "upcoming" | "active" | "completed";
+  /** Custom lock time — overrides qualifying_time - 5 min when set */
+  prediction_lock_time: string | null;
+  /** Custom sprint lock time — overrides sprint_qualifying_time - 5 min when set */
+  sprint_prediction_lock_time: string | null;
 }
 
 export interface Driver {
@@ -58,6 +62,7 @@ export interface Prediction {
   predicted_position_sprint: number | null;
   submitted_at: string;
   is_locked: boolean;
+  is_sprint_locked: boolean;
   is_missed: boolean;
 }
 
