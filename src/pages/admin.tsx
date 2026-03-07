@@ -181,6 +181,50 @@ function RaceManagementCard({
   const hasCustomRaceLock = !!race.prediction_lock_time;
   const hasCustomSprintLock = !!race.sprint_prediction_lock_time;
 
+  // Compute effective lock state from prediction data + deadline + admin flags
+  const { predictionLockState } = admin;
+
+  const raceDeadlinePassed = effectiveRaceLock
+    ? new Date(effectiveRaceLock) <= new Date()
+    : false;
+  const sprintDeadlinePassed = effectiveSprintLock
+    ? new Date(effectiveSprintLock) <= new Date()
+    : false;
+
+  // Priority: admin_unlocked flag → prediction DB state → deadline fallback
+  const isRaceEffectivelyLocked = race.admin_race_unlocked
+    ? false
+    : predictionLockState.isRaceLocked !== null
+      ? predictionLockState.isRaceLocked
+      : raceDeadlinePassed;
+
+  const isSprintEffectivelyLocked = race.admin_sprint_unlocked
+    ? false
+    : predictionLockState.isSprintLocked !== null
+      ? predictionLockState.isSprintLocked
+      : sprintDeadlinePassed;
+
+  // Status text explains why predictions are in their current state
+  const raceStatusText = race.admin_race_unlocked
+    ? "Unlocked by admin"
+    : isRaceEffectivelyLocked
+      ? raceDeadlinePassed
+        ? "Auto-locked"
+        : "Locked by admin"
+      : effectiveRaceLock
+        ? `Open — auto-locks at ${formatDateTime(effectiveRaceLock)}`
+        : "Open";
+
+  const sprintStatusText = race.admin_sprint_unlocked
+    ? "Unlocked by admin"
+    : isSprintEffectivelyLocked
+      ? sprintDeadlinePassed
+        ? "Auto-locked"
+        : "Locked by admin"
+      : effectiveSprintLock
+        ? `Open — auto-locks at ${formatDateTime(effectiveSprintLock)}`
+        : "Open";
+
   return (
     <Card>
       <CardHeader>
@@ -333,15 +377,15 @@ function RaceManagementCard({
             <div>
               <p className="text-sm font-medium">Race predictions</p>
               <p className="text-xs text-muted-foreground">
-                {race.admin_race_unlocked ? "Unlocked by admin" : "Locked"}
+                {raceStatusText}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">
-                {race.admin_race_unlocked ? "Open" : "Locked"}
+                {isRaceEffectivelyLocked ? "Locked" : "Open"}
               </span>
               <Switch
-                checked={!race.admin_race_unlocked}
+                checked={isRaceEffectivelyLocked}
                 disabled={toggling}
                 onCheckedChange={async (locked) => {
                   setToggling(true);
@@ -365,15 +409,15 @@ function RaceManagementCard({
               <div>
                 <p className="text-sm font-medium">Sprint predictions</p>
                 <p className="text-xs text-muted-foreground">
-                  {race.admin_sprint_unlocked ? "Unlocked by admin" : "Locked"}
+                  {sprintStatusText}
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">
-                  {race.admin_sprint_unlocked ? "Open" : "Locked"}
+                  {isSprintEffectivelyLocked ? "Locked" : "Open"}
                 </span>
                 <Switch
-                  checked={!race.admin_sprint_unlocked}
+                  checked={isSprintEffectivelyLocked}
                   disabled={toggling}
                   onCheckedChange={async (locked) => {
                     setToggling(true);

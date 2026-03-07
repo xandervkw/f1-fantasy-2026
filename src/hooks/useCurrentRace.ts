@@ -12,6 +12,8 @@ export interface GridEntry {
   display_name: string;
   driver_name: string;
   driver_team: string;
+  predicted_position_race: number | null;
+  predicted_position_sprint: number | null;
 }
 
 export interface CurrentRaceData {
@@ -100,7 +102,7 @@ export function useCurrentRace(): CurrentRaceData {
       }
 
       // 2. Parallel-fetch assignment, result, score, and race grid
-      const [assignmentRes, resultRes, scoreRes, allAssignmentsRes, membersRes] =
+      const [assignmentRes, resultRes, scoreRes, allAssignmentsRes, membersRes, predictionsRes] =
         await Promise.all([
           // Assignment with driver join (only for current race — driver reveal rule)
           supabase
@@ -142,6 +144,13 @@ export function useCurrentRace(): CurrentRaceData {
             .from("competition_members")
             .select("user_id, profiles(display_name)")
             .eq("competition_id", competitionId),
+
+          // All predictions for this race (RLS handles visibility)
+          supabase
+            .from("predictions")
+            .select("user_id, predicted_position_race, predicted_position_sprint, is_locked, is_sprint_locked")
+            .eq("race_id", currentRace.id)
+            .eq("competition_id", competitionId),
         ]);
 
       if (assignmentRes.error) throw new Error(assignmentRes.error.message);
@@ -161,20 +170,40 @@ export function useCurrentRace(): CurrentRaceData {
 
       setScore((scoreRes.data as Score) ?? null);
 
-      // Build race grid from all assignments + member names
+      // Build race grid from all assignments + member names + predictions
       if (allAssignmentsRes.data && membersRes.data) {
         const memberMap = new Map<string, string>();
         for (const m of membersRes.data as any[]) {
           const name = m.profiles?.display_name ?? "Unknown";
           memberMap.set(m.user_id, name);
         }
+
+        // Build prediction map (only expose positions when their lock flag is set)
+        const predictionMap = new Map<string, {
+          race: number | null;
+          sprint: number | null;
+        }>();
+        if (predictionsRes.data) {
+          for (const p of predictionsRes.data as any[]) {
+            predictionMap.set(p.user_id, {
+              race: p.is_locked ? (p.predicted_position_race ?? null) : null,
+              sprint: p.is_sprint_locked ? (p.predicted_position_sprint ?? null) : null,
+            });
+          }
+        }
+
         const grid: GridEntry[] = (allAssignmentsRes.data as any[])
-          .map((a) => ({
-            user_id: a.user_id as string,
-            display_name: memberMap.get(a.user_id) ?? "Unknown",
-            driver_name: (a.drivers?.full_name as string) ?? "Unknown",
-            driver_team: (a.drivers?.team as string) ?? "Unknown",
-          }))
+          .map((a) => {
+            const pred = predictionMap.get(a.user_id);
+            return {
+              user_id: a.user_id as string,
+              display_name: memberMap.get(a.user_id) ?? "Unknown",
+              driver_name: (a.drivers?.full_name as string) ?? "Unknown",
+              driver_team: (a.drivers?.team as string) ?? "Unknown",
+              predicted_position_race: pred?.race ?? null,
+              predicted_position_sprint: pred?.sprint ?? null,
+            };
+          })
           .sort((a, b) => a.display_name.localeCompare(b.display_name));
         setRaceGrid(grid);
       } else {

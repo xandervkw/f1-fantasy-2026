@@ -77,13 +77,13 @@ function PredictionSection({
         <h3 className="text-sm font-semibold">{label} Prediction</h3>
         {isLocked ? (
           <Badge variant="secondary">Locked</Badge>
-        ) : adminUnlocked ? (
-          <Badge variant="default" className="bg-green-600 text-xs">
-            Open
-          </Badge>
         ) : !countdown.isExpired ? (
           <Badge variant="outline" className="font-mono text-xs">
             {formatCountdown(countdown)}
+          </Badge>
+        ) : adminUnlocked ? (
+          <Badge variant="default" className="bg-green-600 text-xs">
+            Open
           </Badge>
         ) : (
           <Badge variant="secondary">Locked</Badge>
@@ -200,17 +200,37 @@ function ResultsSection({
 function RaceGridCard({
   grid,
   currentUserId,
+  showRacePredictions,
+  showSprintPredictions,
 }: {
   grid: GridEntry[];
   currentUserId: string;
+  showRacePredictions: boolean;
+  showSprintPredictions: boolean;
 }) {
+  const showAnyPredictions = showRacePredictions || showSprintPredictions;
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-lg">Race Grid</CardTitle>
-        <CardDescription>Driver assignments for this round</CardDescription>
+        <CardDescription>
+          Driver assignments{showAnyPredictions ? " & predictions" : ""} for
+          this round
+        </CardDescription>
       </CardHeader>
       <CardContent>
+        {/* Column headers when predictions are visible */}
+        {showAnyPredictions && (
+          <div className="flex items-center justify-end gap-2 mb-2 px-3 text-xs text-muted-foreground">
+            {showSprintPredictions && (
+              <span className="w-12 text-center">Sprint</span>
+            )}
+            {showRacePredictions && (
+              <span className="w-12 text-center">Race</span>
+            )}
+          </div>
+        )}
         <div className="space-y-1">
           {grid.map((entry) => {
             const isMe = entry.user_id === currentUserId;
@@ -221,7 +241,9 @@ function RaceGridCard({
                   isMe ? "bg-primary/10" : ""
                 }`}
               >
-                <span className={`text-sm ${isMe ? "font-semibold" : ""}`}>
+                <span
+                  className={`text-sm shrink-0 ${isMe ? "font-semibold" : ""}`}
+                >
                   {entry.display_name}
                   {isMe && (
                     <span className="ml-1.5 text-xs text-muted-foreground">
@@ -236,6 +258,34 @@ function RaceGridCard({
                   <Badge variant="outline" className="text-xs">
                     {entry.driver_team}
                   </Badge>
+                  {showSprintPredictions && (
+                    <Badge
+                      variant={
+                        entry.predicted_position_sprint !== null
+                          ? "secondary"
+                          : "ghost"
+                      }
+                      className="w-12 justify-center text-xs"
+                    >
+                      {entry.predicted_position_sprint !== null
+                        ? `P${entry.predicted_position_sprint}`
+                        : "—"}
+                    </Badge>
+                  )}
+                  {showRacePredictions && (
+                    <Badge
+                      variant={
+                        entry.predicted_position_race !== null
+                          ? "secondary"
+                          : "ghost"
+                      }
+                      className="w-12 justify-center text-xs"
+                    >
+                      {entry.predicted_position_race !== null
+                        ? `P${entry.predicted_position_race}`
+                        : "—"}
+                    </Badge>
+                  )}
                 </div>
               </div>
             );
@@ -599,9 +649,19 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Race grid — all players' driver assignments */}
+      {/* Race grid — all players' driver assignments + locked predictions */}
       {raceGrid.length > 0 && user && (
-        <RaceGridCard grid={raceGrid} currentUserId={user.id} />
+        <RaceGridCard
+          grid={raceGrid}
+          currentUserId={user.id}
+          showRacePredictions={raceGrid.some(
+            (e) => e.predicted_position_race !== null
+          )}
+          showSprintPredictions={
+            !!race?.is_sprint_weekend &&
+            raceGrid.some((e) => e.predicted_position_sprint !== null)
+          }
+        />
       )}
     </div>
   );
