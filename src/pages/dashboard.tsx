@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useCurrentRace } from "@/hooks/useCurrentRace";
+import { useCurrentRace, type GridEntry } from "@/hooks/useCurrentRace";
 import { usePrediction } from "@/hooks/usePrediction";
 import { useCountdown, type CountdownResult } from "@/hooks/useCountdown";
 import { resolveFinishPosition } from "@/lib/scoring";
@@ -77,13 +77,13 @@ function PredictionSection({
         <h3 className="text-sm font-semibold">{label} Prediction</h3>
         {isLocked ? (
           <Badge variant="secondary">Locked</Badge>
-        ) : adminUnlocked ? (
-          <Badge variant="default" className="bg-green-600 text-xs">
-            Open
-          </Badge>
         ) : !countdown.isExpired ? (
           <Badge variant="outline" className="font-mono text-xs">
             {formatCountdown(countdown)}
+          </Badge>
+        ) : adminUnlocked ? (
+          <Badge variant="default" className="bg-green-600 text-xs">
+            Open
           </Badge>
         ) : (
           <Badge variant="secondary">Locked</Badge>
@@ -197,6 +197,105 @@ function ResultsSection({
   );
 }
 
+function RaceGridCard({
+  grid,
+  currentUserId,
+  showRacePredictions,
+  showSprintPredictions,
+}: {
+  grid: GridEntry[];
+  currentUserId: string;
+  showRacePredictions: boolean;
+  showSprintPredictions: boolean;
+}) {
+  const showAnyPredictions = showRacePredictions || showSprintPredictions;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Race Grid</CardTitle>
+        <CardDescription>
+          Driver assignments{showAnyPredictions ? " & predictions" : ""} for
+          this round
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {/* Column headers when predictions are visible */}
+        {showAnyPredictions && (
+          <div className="flex items-center justify-end gap-2 mb-2 px-3 text-xs text-muted-foreground">
+            {showSprintPredictions && (
+              <span className="w-12 text-center">Sprint</span>
+            )}
+            {showRacePredictions && (
+              <span className="w-12 text-center">Race</span>
+            )}
+          </div>
+        )}
+        <div className="space-y-1">
+          {grid.map((entry) => {
+            const isMe = entry.user_id === currentUserId;
+            return (
+              <div
+                key={entry.user_id}
+                className={`flex items-center justify-between rounded-md px-3 py-2 ${
+                  isMe ? "bg-primary/10" : ""
+                }`}
+              >
+                <span
+                  className={`text-sm shrink-0 ${isMe ? "font-semibold" : ""}`}
+                >
+                  {entry.display_name}
+                  {isMe && (
+                    <span className="ml-1.5 text-xs text-muted-foreground">
+                      (you)
+                    </span>
+                  )}
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">
+                    {entry.driver_name}
+                  </span>
+                  <Badge variant="outline" className="text-xs">
+                    {entry.driver_team}
+                  </Badge>
+                  {showSprintPredictions && (
+                    <Badge
+                      variant={
+                        entry.predicted_position_sprint !== null
+                          ? "secondary"
+                          : "ghost"
+                      }
+                      className="w-12 justify-center text-xs"
+                    >
+                      {entry.predicted_position_sprint !== null
+                        ? `P${entry.predicted_position_sprint}`
+                        : "—"}
+                    </Badge>
+                  )}
+                  {showRacePredictions && (
+                    <Badge
+                      variant={
+                        entry.predicted_position_race !== null
+                          ? "secondary"
+                          : "ghost"
+                      }
+                      className="w-12 justify-center text-xs"
+                    >
+                      {entry.predicted_position_race !== null
+                        ? `P${entry.predicted_position_race}`
+                        : "—"}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ---------- main page ----------
 
 type ViewMode =
@@ -207,12 +306,13 @@ type ViewMode =
   | "race_active";
 
 export default function DashboardPage() {
-  const { profile, competitionId } = useAuth();
+  const { user, profile, competitionId } = useAuth();
   const {
     race,
     assignment,
     result,
     score,
+    raceGrid,
     loading: raceLoading,
     error: raceError,
   } = useCurrentRace();
@@ -548,6 +648,21 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Race grid — all players' driver assignments + locked predictions */}
+      {raceGrid.length > 0 && user && (
+        <RaceGridCard
+          grid={raceGrid}
+          currentUserId={user.id}
+          showRacePredictions={raceGrid.some(
+            (e) => e.predicted_position_race !== null
+          )}
+          showSprintPredictions={
+            !!race?.is_sprint_weekend &&
+            raceGrid.some((e) => e.predicted_position_sprint !== null)
+          }
+        />
+      )}
     </div>
   );
 }

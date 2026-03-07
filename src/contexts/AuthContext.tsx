@@ -11,6 +11,7 @@ interface AuthContextValue {
   competitionId: string | null;
   loading: boolean;
   signIn: (redirectTo?: string) => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   joinCompetition: (inviteCode: string) => Promise<{ error: string | null }>;
 }
@@ -133,6 +134,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const signInWithEmail = useCallback(async (email: string, password: string): Promise<{ error: string | null }> => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { error: error.message };
+    return { error: null };
+  }, []);
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
   }, []);
@@ -228,6 +235,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         competitionId,
         loading,
         signIn,
+        signInWithEmail,
         signOut,
         joinCompetition,
       }}

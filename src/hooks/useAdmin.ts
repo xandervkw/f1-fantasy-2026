@@ -36,6 +36,11 @@ export interface MutationResult {
   message: string;
 }
 
+export interface PredictionLockState {
+  isRaceLocked: boolean | null;
+  isSprintLocked: boolean | null;
+}
+
 export interface UseAdminReturn {
   // Global data
   races: Race[];
@@ -53,6 +58,7 @@ export interface UseAdminReturn {
     is_dnf_sprint: boolean;
   }>;
   raceAssignments: AssignmentRow[];
+  predictionLockState: PredictionLockState;
 
   // Loading
   loading: boolean;
@@ -110,6 +116,8 @@ export function useAdmin(
     UseAdminReturn["raceResults"]
   >([]);
   const [raceAssignments, setRaceAssignments] = useState<AssignmentRow[]>([]);
+  const [predictionLockState, setPredictionLockState] =
+    useState<PredictionLockState>({ isRaceLocked: null, isSprintLocked: null });
 
   const [loading, setLoading] = useState(true);
   const [raceLoading, setRaceLoading] = useState(false);
@@ -177,17 +185,26 @@ export function useAdmin(
       if (!competitionId || !raceId) {
         setRaceResults([]);
         setRaceAssignments([]);
+        setPredictionLockState({ isRaceLocked: null, isSprintLocked: null });
         return;
       }
       setRaceLoading(true);
       try {
-        const [resultsRes, assignmentsRes] = await Promise.all([
+        const [resultsRes, assignmentsRes, predLockRes] = await Promise.all([
           supabase.from("results").select("*").eq("race_id", raceId),
           supabase
             .from("driver_assignments")
             .select("user_id, driver_id, drivers(full_name, abbreviation, team)")
             .eq("race_id", raceId)
             .eq("competition_id", competitionId),
+          // Query one prediction to determine actual lock state
+          supabase
+            .from("predictions")
+            .select("is_locked, is_sprint_locked")
+            .eq("race_id", raceId)
+            .eq("competition_id", competitionId)
+            .limit(1)
+            .maybeSingle(),
         ]);
 
         if (resultsRes.error) throw resultsRes.error;
@@ -217,6 +234,16 @@ export function useAdmin(
             driver_team: a.drivers?.team ?? "Unknown",
           }))
         );
+
+        // Set prediction lock state from queried prediction row
+        if (predLockRes.data) {
+          setPredictionLockState({
+            isRaceLocked: predLockRes.data.is_locked ?? null,
+            isSprintLocked: predLockRes.data.is_sprint_locked ?? null,
+          });
+        } else {
+          setPredictionLockState({ isRaceLocked: null, isSprintLocked: null });
+        }
       } catch (err: any) {
         console.error("[useAdmin] loadRaceData error:", err);
       } finally {
@@ -323,6 +350,7 @@ export function useAdmin(
         };
 
         await loadGlobalData(); // refresh race flags
+        if (selectedRaceId) await loadRaceData(selectedRaceId); // refresh lock state
         return {
           success: true,
           message: `Locked: ${result.race_locked} race${result.sprint_locked > 0 ? `, ${result.sprint_locked} sprint` : ""}${result.missed > 0 ? `, ${result.missed} missed` : ""}.`,
@@ -334,7 +362,7 @@ export function useAdmin(
         };
       }
     },
-    [loadGlobalData]
+    [loadGlobalData, loadRaceData, selectedRaceId]
   );
 
   const unlockPredictions = useCallback(
@@ -358,6 +386,7 @@ export function useAdmin(
         const result = data as { updated: number; type: string };
 
         await loadGlobalData(); // refresh race flags
+        if (selectedRaceId) await loadRaceData(selectedRaceId); // refresh lock state
         return {
           success: true,
           message: `Unlocked ${result.type} predictions. ${result.updated} rows updated.`,
@@ -369,7 +398,7 @@ export function useAdmin(
         };
       }
     },
-    [loadGlobalData]
+    [loadGlobalData, loadRaceData, selectedRaceId]
   );
 
   const updateLockTime = useCallback(
@@ -572,6 +601,7 @@ export function useAdmin(
     acceptingMembers,
     raceResults,
     raceAssignments,
+    predictionLockState,
     loading,
     raceLoading,
     error,

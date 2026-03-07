@@ -1,7 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
@@ -34,7 +35,11 @@ function GoogleIcon() {
 }
 
 export default function LandingPage() {
-  const { session, competitionId, loading, signIn } = useAuth();
+  const { session, competitionId, loading, signIn, signInWithEmail } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailLoading, setEmailLoading] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirectPath = searchParams.get("redirect") || "/dashboard";
@@ -87,7 +92,7 @@ export default function LandingPage() {
             Sign in to make your predictions
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <Button
             onClick={handleSignIn}
             className="w-full"
@@ -97,6 +102,56 @@ export default function LandingPage() {
             <GoogleIcon />
             Sign in with Google
           </Button>
+
+          {import.meta.env.DEV && (
+            <>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">
+                    Dev Login
+                  </span>
+                </div>
+              </div>
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setEmailLoading(true);
+                  setEmailError(null);
+                  const { error } = await signInWithEmail(email, password);
+                  if (error) setEmailError(error);
+                  setEmailLoading(false);
+                }}
+                className="space-y-2"
+              >
+                <Input
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+                <Input
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                {emailError && (
+                  <p className="text-sm text-destructive">{emailError}</p>
+                )}
+                <Button
+                  type="submit"
+                  className="w-full"
+                  size="lg"
+                  disabled={emailLoading}
+                >
+                  {emailLoading ? "Signing in…" : "Sign in with Email"}
+                </Button>
+              </form>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>
