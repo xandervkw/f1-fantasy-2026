@@ -220,76 +220,82 @@ function RaceGridCard({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {/* Column headers when predictions are visible */}
-        {showAnyPredictions && (
-          <div className="flex items-center justify-end gap-2 mb-2 px-3 text-xs text-muted-foreground">
-            {showSprintPredictions && (
-              <span className="w-12 text-center">Sprint</span>
-            )}
-            {showRacePredictions && (
-              <span className="w-12 text-center">Race</span>
-            )}
-          </div>
-        )}
-        <div className="space-y-1">
-          {grid.map((entry) => {
-            const isMe = entry.user_id === currentUserId;
-            return (
-              <div
-                key={entry.user_id}
-                className={`flex items-center justify-between rounded-md px-3 py-2 ${
-                  isMe ? "bg-primary/10" : ""
-                }`}
-              >
-                <span
-                  className={`text-sm shrink-0 ${isMe ? "font-semibold" : ""}`}
-                >
-                  {entry.display_name}
-                  {isMe && (
-                    <span className="ml-1.5 text-xs text-muted-foreground">
-                      (you)
-                    </span>
-                  )}
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">
-                    {entry.driver_name}
-                  </span>
-                  <Badge variant="outline" className="text-xs">
-                    {entry.driver_team}
-                  </Badge>
-                  {showSprintPredictions && (
-                    <Badge
-                      variant={
-                        entry.predicted_position_sprint !== null
-                          ? "secondary"
-                          : "ghost"
-                      }
-                      className="w-12 justify-center text-xs"
-                    >
-                      {entry.predicted_position_sprint !== null
-                        ? `P${entry.predicted_position_sprint}`
-                        : "—"}
-                    </Badge>
-                  )}
-                  {showRacePredictions && (
-                    <Badge
-                      variant={
-                        entry.predicted_position_race !== null
-                          ? "secondary"
-                          : "ghost"
-                      }
-                      className="w-12 justify-center text-xs"
-                    >
-                      {entry.predicted_position_race !== null
-                        ? `P${entry.predicted_position_race}`
-                        : "—"}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+        <div className="overflow-x-auto">
+          <table className={`w-full text-sm table-fixed ${showAnyPredictions ? "min-w-[480px]" : "min-w-[340px]"}`}>
+            <thead>
+              <tr className="text-xs text-muted-foreground">
+                <th className="text-left font-normal pb-2 w-[30%]">Player</th>
+                <th className="text-left font-normal pb-2">Driver</th>
+                <th className="text-left font-normal pb-2 w-[90px]">Team</th>
+                {showSprintPredictions && (
+                  <th className="text-center font-normal pb-2 w-[56px]">Sprint</th>
+                )}
+                {showRacePredictions && (
+                  <th className="text-center font-normal pb-2 w-[56px]">Race</th>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {grid.map((entry) => {
+                const isMe = entry.user_id === currentUserId;
+                return (
+                  <tr
+                    key={entry.user_id}
+                    className={isMe ? "bg-primary/10" : ""}
+                  >
+                    <td className={`py-1.5 px-2 rounded-l-md ${isMe ? "font-semibold" : ""}`}>
+                      {entry.display_name}
+                      {isMe && (
+                        <span className="ml-1 text-xs text-muted-foreground font-normal">
+                          (you)
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-1.5 px-2 font-medium">
+                      {entry.driver_name}
+                    </td>
+                    <td className="py-1.5 px-2">
+                      <Badge variant="outline" className="text-xs">
+                        {entry.driver_team}
+                      </Badge>
+                    </td>
+                    {showSprintPredictions && (
+                      <td className="py-1.5 px-2 text-center">
+                        <Badge
+                          variant={
+                            entry.predicted_position_sprint !== null
+                              ? "secondary"
+                              : "ghost"
+                          }
+                          className="w-10 justify-center text-xs"
+                        >
+                          {entry.predicted_position_sprint !== null
+                            ? `P${entry.predicted_position_sprint}`
+                            : "—"}
+                        </Badge>
+                      </td>
+                    )}
+                    {showRacePredictions && (
+                      <td className="py-1.5 px-2 text-center rounded-r-md">
+                        <Badge
+                          variant={
+                            entry.predicted_position_race !== null
+                              ? "secondary"
+                              : "ghost"
+                          }
+                          className="w-10 justify-center text-xs"
+                        >
+                          {entry.predicted_position_race !== null
+                            ? `P${entry.predicted_position_race}`
+                            : "—"}
+                        </Badge>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </CardContent>
     </Card>
