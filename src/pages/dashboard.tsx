@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useCurrentRace } from "@/hooks/useCurrentRace";
+import { useCurrentRace, type GridEntry } from "@/hooks/useCurrentRace";
 import { usePrediction } from "@/hooks/usePrediction";
 import { useCountdown, type CountdownResult } from "@/hooks/useCountdown";
 import { resolveFinishPosition } from "@/lib/scoring";
@@ -197,6 +197,55 @@ function ResultsSection({
   );
 }
 
+function RaceGridCard({
+  grid,
+  currentUserId,
+}: {
+  grid: GridEntry[];
+  currentUserId: string;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Race Grid</CardTitle>
+        <CardDescription>Driver assignments for this round</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-1">
+          {grid.map((entry) => {
+            const isMe = entry.user_id === currentUserId;
+            return (
+              <div
+                key={entry.user_id}
+                className={`flex items-center justify-between rounded-md px-3 py-2 ${
+                  isMe ? "bg-primary/10" : ""
+                }`}
+              >
+                <span className={`text-sm ${isMe ? "font-semibold" : ""}`}>
+                  {entry.display_name}
+                  {isMe && (
+                    <span className="ml-1.5 text-xs text-muted-foreground">
+                      (you)
+                    </span>
+                  )}
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">
+                    {entry.driver_name}
+                  </span>
+                  <Badge variant="outline" className="text-xs">
+                    {entry.driver_team}
+                  </Badge>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ---------- main page ----------
 
 type ViewMode =
@@ -207,12 +256,13 @@ type ViewMode =
   | "race_active";
 
 export default function DashboardPage() {
-  const { profile, competitionId } = useAuth();
+  const { user, profile, competitionId } = useAuth();
   const {
     race,
     assignment,
     result,
     score,
+    raceGrid,
     loading: raceLoading,
     error: raceError,
   } = useCurrentRace();
@@ -548,6 +598,11 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Race grid — all players' driver assignments */}
+      {raceGrid.length > 0 && user && (
+        <RaceGridCard grid={raceGrid} currentUserId={user.id} />
+      )}
     </div>
   );
 }
