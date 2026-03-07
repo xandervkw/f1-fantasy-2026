@@ -243,7 +243,7 @@ function RaceGridCard({
                     key={entry.user_id}
                     className={isMe ? "bg-primary/10" : ""}
                   >
-                    <td className={`py-1.5 px-2 rounded-l-md ${isMe ? "font-semibold" : ""}`}>
+                    <td className={`py-1.5 px-2 rounded-l-md truncate max-w-0 ${isMe ? "font-semibold" : ""}`} title={entry.display_name}>
                       {entry.display_name}
                       {isMe && (
                         <span className="ml-1 text-xs text-muted-foreground font-normal">
@@ -251,7 +251,7 @@ function RaceGridCard({
                         </span>
                       )}
                     </td>
-                    <td className="py-1.5 px-2 font-medium">
+                    <td className="py-1.5 px-2 font-medium truncate max-w-0" title={entry.driver_name}>
                       {entry.driver_name}
                     </td>
                     <td className="py-1.5 px-2">
