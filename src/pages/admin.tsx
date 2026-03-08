@@ -458,7 +458,7 @@ function RaceManagementCard({
             onClick={async () => {
               setFetching(true);
               setFetchMsg(null);
-              const res = await admin.fetchResults(race.round_number);
+              const res = await admin.fetchResults(race.round_number, race);
               setFetchMsg({
                 type: res.success ? "success" : "error",
                 text: res.message,

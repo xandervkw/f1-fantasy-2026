@@ -5,6 +5,7 @@ import {
   storeAssignments,
   deleteAssignments,
 } from "@/lib/assignments";
+import { fetchRaceResults, fetchSprintResults } from "@/lib/f1api";
 import type { Race, Driver } from "@/types";
 
 // ---------- types ----------
@@ -66,7 +67,7 @@ export interface UseAdminReturn {
   error: string | null;
 
   // Mutations
-  fetchResults: (roundNumber: number) => Promise<MutationResult>;
+  fetchResults: (roundNumber: number, race: Race) => Promise<MutationResult>;
   saveResults: (
     raceId: string,
     results: ResultInput[]
@@ -265,32 +266,134 @@ export function useAdmin(
   // ---------- mutations ----------
 
   const fetchResults = useCallback(
-    async (roundNumber: number): Promise<MutationResult> => {
+    async (roundNumber: number, race: Race): Promise<MutationResult> => {
       try {
-        const { data, error: fnError } = await supabase.functions.invoke(
-          "fetch-results",
-          { body: { round_number: roundNumber } }
+        // Build driver code → id mapping from already-loaded drivers
+        const driverByCode = new Map(
+          drivers.map((d) => [d.abbreviation, d.id])
         );
-        if (fnError) {
+
+        // Fetch race results from Jolpica API (public, CORS-friendly)
+        let raceData: any;
+        try {
+          raceData = await fetchRaceResults(roundNumber);
+        } catch (e) {
           return {
             success: false,
-            message: fnError.message ?? "Edge function error",
+            message: `Failed to reach F1 results API: ${e instanceof Error ? e.message : String(e)}`,
           };
         }
+        const raceResults: any[] =
+          raceData?.MRData?.RaceTable?.Races?.[0]?.Results ?? [];
+
+        if (raceResults.length === 0) {
+          return {
+            success: false,
+            message: `No race results available yet for round ${roundNumber} (${race.race_name}). The API may not have published them yet.`,
+          };
+        }
+
+        // Fetch sprint results if sprint weekend
+        let sprintResults: any[] = [];
+        if (race.is_sprint_weekend) {
+          try {
+            const sprintData = await fetchSprintResults(roundNumber);
+            sprintResults =
+              sprintData?.MRData?.RaceTable?.Races?.[0]?.SprintResults ?? [];
+          } catch {
+            console.warn("Sprint results fetch failed, continuing without");
+          }
+        }
+
+        // Map API results → DB rows
+        const raceByCode = new Map<string, { position: number; dnf: boolean }>();
+        for (const r of raceResults) {
+          const status: string = r.status ?? "";
+          raceByCode.set(r.Driver.code, {
+            position: parseInt(r.position, 10),
+            dnf: status !== "Finished" && !status.startsWith("+"),
+          });
+        }
+
+        const sprintByCode = new Map<string, { position: number; dnf: boolean }>();
+        for (const r of sprintResults) {
+          const status: string = r.status ?? "";
+          sprintByCode.set(r.Driver.code, {
+            position: parseInt(r.position, 10),
+            dnf: status !== "Finished" && !status.startsWith("+"),
+          });
+        }
+
+        const allCodes = new Set([...raceByCode.keys(), ...sprintByCode.keys()]);
+        const unmatchedCodes: string[] = [];
+        const resultRows: Array<{
+          race_id: string;
+          driver_id: string;
+          finish_position_race: number | null;
+          finish_position_sprint: number | null;
+          is_dnf_race: boolean;
+          is_dnf_sprint: boolean;
+        }> = [];
+
+        for (const code of allCodes) {
+          const driverId = driverByCode.get(code);
+          if (!driverId) {
+            unmatchedCodes.push(code);
+            continue;
+          }
+          const raceR = raceByCode.get(code);
+          const sprintR = sprintByCode.get(code);
+          resultRows.push({
+            race_id: race.id,
+            driver_id: driverId,
+            finish_position_race: raceR?.position ?? null,
+            finish_position_sprint: sprintR?.position ?? null,
+            is_dnf_race: raceR?.dnf ?? false,
+            is_dnf_sprint: sprintR?.dnf ?? false,
+          });
+        }
+
+        if (resultRows.length === 0) {
+          return {
+            success: false,
+            message: `Could not match any API drivers to database drivers. Unmatched codes: ${unmatchedCodes.join(", ")}`,
+          };
+        }
+
+        // Upsert results
+        const { error: upsertErr } = await supabase
+          .from("results")
+          .upsert(resultRows, { onConflict: "race_id,driver_id" });
+
+        if (upsertErr) {
+          return {
+            success: false,
+            message: `Failed to save results: ${upsertErr.message}`,
+          };
+        }
+
         // Refresh data
         await loadGlobalData();
         if (selectedRaceId) await loadRaceData(selectedRaceId);
-        return {
-          success: true,
-          message:
-            data?.message ??
-            `Results fetched for round ${roundNumber}. ${data?.results_stored ?? 0} results stored.`,
-        };
+
+        const msgs = [`Fetched ${resultRows.length} results for ${race.race_name}.`];
+        if (unmatchedCodes.length > 0) {
+          msgs.push(`${unmatchedCodes.length} unmatched drivers: ${unmatchedCodes.join(", ")}`);
+        }
+        if (sprintResults.length > 0) {
+          msgs.push(`Sprint results included.`);
+        } else if (race.is_sprint_weekend) {
+          msgs.push(`Sprint results not available yet.`);
+        }
+        return { success: true, message: msgs.join(" ") };
       } catch (err: any) {
-        return { success: false, message: err.message ?? "Failed to fetch results" };
+        return {
+          success: false,
+          message: err.message ?? "Failed to fetch results",
+        };
       }
     },
-    [loadGlobalData, loadRaceData, selectedRaceId]
+    [drivers, loadGlobalData, loadRaceData, selectedRaceId]
   );
 
   const saveResults = useCallback(
