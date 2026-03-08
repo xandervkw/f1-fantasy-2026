@@ -448,9 +448,37 @@ export function useAdmin(
           };
         }
         const result = data ?? {};
+
+        // Auto-complete the race and activate the next one
+        const { error: statusErr } = await supabase
+          .from("races")
+          .update({ status: "completed" as const })
+          .eq("id", raceId);
+
+        let nextActivated = false;
+        if (!statusErr) {
+          const { data: nextRace } = await supabase
+            .from("races")
+            .select("id")
+            .eq("season", 2026)
+            .eq("status", "upcoming")
+            .order("round_number", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          if (nextRace) {
+            await supabase
+              .from("races")
+              .update({ status: "active" as const })
+              .eq("id", nextRace.id);
+            nextActivated = true;
+          }
+        }
+
+        await loadGlobalData();
         return {
           success: true,
-          message: `Scores calculated. ${result?.scores_calculated ?? "?"} score rows.`,
+          message: `Scores calculated (${result?.scores_calculated ?? "?"} rows). Race marked completed.${nextActivated ? " Next race activated." : ""}`,
         };
       } catch (err: any) {
         return {
@@ -459,7 +487,7 @@ export function useAdmin(
         };
       }
     },
-    []
+    [loadGlobalData]
   );
 
   const updateRaceStatus = useCallback(
