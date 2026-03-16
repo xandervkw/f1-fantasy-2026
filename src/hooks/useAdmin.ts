@@ -311,7 +311,7 @@ export function useAdmin(
           const status: string = r.status ?? "";
           raceByCode.set(r.Driver.code, {
             position: parseInt(r.position, 10),
-            dnf: status !== "Finished" && !status.startsWith("+"),
+            dnf: status !== "Finished" && !status.startsWith("+") && status !== "Lapped",
           });
         }
 
@@ -320,7 +320,7 @@ export function useAdmin(
           const status: string = r.status ?? "";
           sprintByCode.set(r.Driver.code, {
             position: parseInt(r.position, 10),
-            dnf: status !== "Finished" && !status.startsWith("+"),
+            dnf: status !== "Finished" && !status.startsWith("+") && status !== "Lapped",
           });
         }
 
