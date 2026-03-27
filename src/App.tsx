@@ -9,6 +9,7 @@ import StandingsPage from "@/pages/standings";
 import HistoryPage from "@/pages/history";
 import AdminPage from "@/pages/admin";
 import AboutPage from "@/pages/about";
+import FeedbackPage from "@/pages/feedback";
 
 /** Layout wrapper that shows the nav bar on authenticated pages */
 function AppLayout({ children }: { children: React.ReactNode }) {
@@ -85,6 +86,16 @@ function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <AboutPage />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/feedback"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <FeedbackPage />
                 </AppLayout>
               </ProtectedRoute>
             }

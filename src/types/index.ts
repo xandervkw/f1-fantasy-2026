@@ -92,3 +92,10 @@ export interface Score {
   race_position_off: number | null;
   sprint_position_off: number | null;
 }
+
+export interface Feedback {
+  id: string;
+  user_id: string;
+  message: string;
+  created_at: string;
+}

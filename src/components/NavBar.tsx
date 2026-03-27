@@ -7,6 +7,7 @@ const links = [
   { to: "/standings", label: "Standings" },
   { to: "/history", label: "History" },
   { to: "/about", label: "About" },
+  { to: "/feedback", label: "Feedback" },
 ];
 
 function linkClasses(isActive: boolean) {

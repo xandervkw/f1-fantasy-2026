@@ -39,7 +39,6 @@ node_modules/
 .env
 .env.*
 !.env.example
-!.env.production
 *.local
 
 # Build output
@@ -65,10 +64,4 @@ tests/e2e/.auth/
 *.njsproj
 *.sln
 *.sw?
-
-# Local Supabase metadata
-supabase/.branches/
 supabase/.temp/
-
-# Claude Code worktrees
-.claude/worktrees/
