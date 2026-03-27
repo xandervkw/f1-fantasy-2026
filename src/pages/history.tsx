@@ -20,10 +20,10 @@ import {
 
 // ---------- sub-components ----------
 
-/** Formats position as "P1", "P2", etc. or "—" for null */
+/** Formats position as "P1", "P2", etc., "DNF", or "—" for null */
 function pos(p: number | null, isDnf?: boolean): string {
-  if (p == null) return "—";
   if (isDnf) return "DNF";
+  if (p == null) return "—";
   return `P${p}`;
 }
 
@@ -33,8 +33,9 @@ function offLabel(
   actual: number | null,
   isDnf?: boolean
 ): string {
-  if (predicted == null || actual == null) return "—";
+  if (predicted == null) return "—";
   const effectiveActual = isDnf ? 22 : actual;
+  if (effectiveActual == null) return "—";
   const diff = predicted - effectiveActual;
   if (diff === 0) return "Perfect";
   return diff > 0 ? `+${diff}` : String(diff);
@@ -124,7 +125,7 @@ function ByRaceTable({
                     {pos(row.actualPosition, row.isDnf)}
                   </td>
                   <td className="py-2 text-right">
-                    {row.positionOff === 0 ? (
+                    {offLabel(row.predictedPosition, row.actualPosition, row.isDnf) === "Perfect" ? (
                       <Badge
                         variant="default"
                         className="text-xs px-1.5 py-0"
@@ -188,7 +189,7 @@ function ByRaceTable({
                       {pos(row.sprintActual, row.sprintDnf)}
                     </td>
                     <td className="py-2 text-right">
-                      {row.sprintPositionOff === 0 ? (
+                      {offLabel(row.sprintPredicted, row.sprintActual, row.sprintDnf) === "Perfect" ? (
                         <Badge
                           variant="default"
                           className="text-xs px-1.5 py-0"
@@ -264,7 +265,7 @@ function ByPlayerTable({ rows }: { rows: HistoryScoreRow[] }) {
                 {pos(row.actualPosition, row.isDnf)}
               </td>
               <td className="py-2 text-right">
-                {row.positionOff === 0 ? (
+                {offLabel(row.predictedPosition, row.actualPosition, row.isDnf) === "Perfect" ? (
                   <Badge variant="default" className="text-xs px-1.5 py-0">
                     {"\u2713"}
                   </Badge>
