@@ -27,7 +27,7 @@ const SPRINT_SCORING = [
   { off: "5+", pts: 0 },
 ];
 
-const SPRINT_ROUNDS = [2, 6, 7, 11, 14, 18];
+const SPRINT_ROUNDS = [2, 4, 5, 9, 12, 16];
 
 // ---------- sub-components ----------
 
@@ -102,17 +102,17 @@ export default function AboutPage() {
             <p>
               Each race weekend, every player is assigned a random driver. Your
               job is to predict where that driver will finish. The closer your
-              prediction, the more points you earn. After 24 races, the player
+              prediction, the more points you earn. After 22 races, the player
               with the most points wins.
             </p>
           </Section>
 
           <Section title="Driver Assignments">
             <p>
-              Drivers are assigned using a balanced rotation system. Over the
-              first 22 races, you will be assigned each of the 22 drivers
-              exactly once — no repeats and no two players share the same driver
-              in any round.
+              Drivers are assigned using a balanced rotation system. Over all
+              22 races, you will be assigned each of the 22 drivers exactly
+              once — no repeats and no two players share the same driver in any
+              round.
             </p>
             <p>
               Your assigned driver for the next race is revealed after the
@@ -223,42 +223,6 @@ export default function AboutPage() {
         </CardContent>
       </Card>
 
-      {/* Reverse Draft */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Reverse Draft (Races 23 & 24)</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <Section title="How the Draft Works">
-            <p>
-              For the final two races, the automatic driver rotation stops.
-              Instead, players draft their own driver in reverse standings order
-              — the player in last place picks first, and the leader picks last.
-            </p>
-            <div className="rounded-md border p-3 space-y-1.5">
-              <ul className="list-disc list-inside space-y-1">
-                <li>
-                  After Race 22, players are ranked by total score (ascending —
-                  worst first)
-                </li>
-                <li>
-                  Last place picks first for Race 23, up to first place
-                </li>
-                <li>
-                  After Race 23, standings are recalculated and a new draft
-                  order is set for Race 24
-                </li>
-                <li>
-                  If you don't pick within 24 hours of your turn, you're
-                  auto-assigned the highest-ranked available driver by current
-                  F1 championship standing
-                </li>
-              </ul>
-            </div>
-          </Section>
-        </CardContent>
-      </Card>
-
       {/* Season info */}
       <Card>
         <CardHeader>
@@ -267,7 +231,7 @@ export default function AboutPage() {
         <CardContent className="space-y-6">
           <Section title="Quick Facts">
             <ul className="list-disc list-inside space-y-1">
-              <li>24 races, starting Australia (March 6–8)</li>
+              <li>22 races, starting Australia (March 6–8)</li>
               <li>22 drivers across 11 teams (including Cadillac)</li>
               <li>6 sprint weekends</li>
               <li>All times shown in your local timezone</li>

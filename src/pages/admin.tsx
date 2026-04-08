@@ -94,7 +94,7 @@ function CompetitionStatusCard({
           <span className="text-sm text-muted-foreground">
             Rounds (Latin square)
           </span>
-          <Badge variant="secondary">22 of 24</Badge>
+          <Badge variant="secondary">22 of 22</Badge>
         </div>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
